@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "capy-outcome-runtime"
+version = "0.1.0"
+description = "Provider-neutral shared execution core for Capy Outcome Runtime V0"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+capy-builder = "capy_outcome_runtime.builder_cli:main"
+capy-productization-qualify = "capy_outcome_runtime.productization:main"
+capy-encar-watcher-dispatch = "capy_outcome_runtime.encar_watcher_dispatcher:main"
+capy-problem = "capy_outcome_runtime.problem_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"capy_outcome_runtime._release_format" = ["PROVENANCE.json"]

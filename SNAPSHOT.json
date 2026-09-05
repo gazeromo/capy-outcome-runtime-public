@@ -1,0 +1,368 @@
+{
+  "schema": "capy.public-source-snapshot/v0",
+  "source_commit": "c1ba85a2197667a75d3706d8a282b09181217b50",
+  "source_package_tree": "fee063db186432b237752686ac35697c2eaf6410",
+  "files": [
+    {
+      "path": "campaigns/accepted_release_import_preview_v0/inputs/A_verified_total/candidate.capyrc",
+      "sha256": "21923a5752a314ca502a141861e614829b3d8b2d006c54622d83d9ca8503aec6",
+      "size": 47778
+    },
+    {
+      "path": "campaigns/accepted_release_import_preview_v0/inputs/A_verified_total/document.json",
+      "sha256": "c683b16670d7dff30a5c889e77cbb9fe13191d377d0854e150527f56e2583bab",
+      "size": 2711
+    },
+    {
+      "path": "campaigns/accepted_release_import_preview_v0/inputs/B_verified_mean/candidate.capyrc",
+      "sha256": "06aa352d7acc659a701525335109ae9cd1e6caab1480bc6c4658307521e90406",
+      "size": 47798
+    },
+    {
+      "path": "campaigns/accepted_release_import_preview_v0/inputs/B_verified_mean/document.json",
+      "sha256": "c0a1faf7b8f4c7fb036b6c4d28fe709ce8e38348d99302da99375018722c61f5",
+      "size": 3952
+    },
+    {
+      "path": "campaigns/accepted_release_import_preview_v0/inputs/C_verified_artifact/candidate.capyrc",
+      "sha256": "72f11e6ea927648e1c5dcb26a9b7062d3593850ca11dc362ece21f273f17bff9",
+      "size": 48164
+    },
+    {
+      "path": "campaigns/accepted_release_import_preview_v0/inputs/C_verified_artifact/document.json",
+      "sha256": "0cfa35a07f5333a34ab0baf132d2e72af23dde03a68e1e3189e9782c5a38930a",
+      "size": 4424
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "6621539bcfdd963ac081996ea219d72afc9874d1b042de617edcb74e3492e4e4",
+      "size": 699
+    },
+    {
+      "path": "src/capy_outcome_runtime/__init__.py",
+      "sha256": "b82ac8c06e96b52e71ea9861a8b86efc79adef76c1dbfdff050dc738b35e310c",
+      "size": 2877
+    },
+    {
+      "path": "src/capy_outcome_runtime/_release_format/PROVENANCE.json",
+      "sha256": "f614008111e9a82ce979db2fd3c7bcabcc83c1e3eaf752ed4f27487c81c9a295",
+      "size": 1811
+    },
+    {
+      "path": "src/capy_outcome_runtime/_release_format/__init__.py",
+      "sha256": "9206815e2ae863b9258b6572b5405364c5873f0208a5a9719d7dd5c11a03267a",
+      "size": 78
+    },
+    {
+      "path": "src/capy_outcome_runtime/_release_format/candidate.py",
+      "sha256": "2d792fa09cea122546dfd482c403152bb1ad880fad2848569cb60df27c428774",
+      "size": 40425
+    },
+    {
+      "path": "src/capy_outcome_runtime/_release_format/codec.py",
+      "sha256": "245a46a1140417cbc23f4c17ce20f58e6f7daf7b6e9bb9a144423f929362287d",
+      "size": 9316
+    },
+    {
+      "path": "src/capy_outcome_runtime/_release_format/constants.py",
+      "sha256": "e168926bbc327382087f10a975c087483007e8ec4d9362e94119eddade9ab7ab",
+      "size": 4130
+    },
+    {
+      "path": "src/capy_outcome_runtime/_release_format/errors.py",
+      "sha256": "6c8e932672cf4756c619700fec6297caef0a55536fa57212ff54659024b5f026",
+      "size": 257
+    },
+    {
+      "path": "src/capy_outcome_runtime/_release_format/interaction.py",
+      "sha256": "2fd994bbfcab321d4da58ebc07d227d5a71ae65d26d6f5e9eef11b73217c0a7e",
+      "size": 22707
+    },
+    {
+      "path": "src/capy_outcome_runtime/_release_format/models.py",
+      "sha256": "35f095260f4e463fa3a27c95668542b327b4ec8183279a2e4ecd8ffae6922c6b",
+      "size": 702
+    },
+    {
+      "path": "src/capy_outcome_runtime/_release_format/projection.py",
+      "sha256": "a5c51d159cffcbf8294a1b5c333d0e5ed084957f753d5e18330be9a15c3da72f",
+      "size": 3497
+    },
+    {
+      "path": "src/capy_outcome_runtime/_release_format/validation.py",
+      "sha256": "700f9bcc2bb3a29557a84a54155cd6f37629100b2f76f1d200a2ae2eed6683f8",
+      "size": 5483
+    },
+    {
+      "path": "src/capy_outcome_runtime/access.py",
+      "sha256": "7f4fcb9edf534ce3fd3062b2ce7470ecd46db6b5790a80f2a508cee1d8e7eefa",
+      "size": 35053
+    },
+    {
+      "path": "src/capy_outcome_runtime/access_cli.py",
+      "sha256": "7bd1a23754787b792abd6a1e43787af6d6361ebf005863f95a44c4fc0ef86d3b",
+      "size": 2039
+    },
+    {
+      "path": "src/capy_outcome_runtime/application_interfaces.py",
+      "sha256": "c97d9c74cfde7a429bf080e956ff5ab1e2fa269bc80c72bf1d519262573158de",
+      "size": 26550
+    },
+    {
+      "path": "src/capy_outcome_runtime/application_operations.py",
+      "sha256": "53a74fdcb8f4c5b5414724348e3dfcc498631e151630f6d6e337d4e3deda98e4",
+      "size": 9777
+    },
+    {
+      "path": "src/capy_outcome_runtime/application_profiles.py",
+      "sha256": "e726763a4302b651a95345d42eaf35ae8db6245e4167326e1caa3cae5f7e6e74",
+      "size": 5332
+    },
+    {
+      "path": "src/capy_outcome_runtime/build.py",
+      "sha256": "bc082e51d78ccdf30bab3b70fc5d22bdee496416407e5a3521cad1cf300a41e2",
+      "size": 89717
+    },
+    {
+      "path": "src/capy_outcome_runtime/builder_cli.py",
+      "sha256": "bc7680910e1c23195d395afd2e582a4715f4f8302ba4b79e56a5f8f8a6742770",
+      "size": 3311
+    },
+    {
+      "path": "src/capy_outcome_runtime/chat.py",
+      "sha256": "a897b5517b75593ef55a73a01f88a318dc0f91b397aaa17161e5d582a1cfa7ba",
+      "size": 57225
+    },
+    {
+      "path": "src/capy_outcome_runtime/connection_cli.py",
+      "sha256": "82165b53ff9068482f99fe5a7e83fd5e2253268e5abb7d41ffc47240f4ab0929",
+      "size": 4095
+    },
+    {
+      "path": "src/capy_outcome_runtime/connections.py",
+      "sha256": "2ae96d0700ded17f0b4ecb98fb4fbd039415636da94258666c55bda8d6203003",
+      "size": 27422
+    },
+    {
+      "path": "src/capy_outcome_runtime/controller.py",
+      "sha256": "744de6308a6857df5b5d711f03b7e8d5210032bd5cd7f1b0007fd93518884968",
+      "size": 88228
+    },
+    {
+      "path": "src/capy_outcome_runtime/edge_qualification.py",
+      "sha256": "3fadbab0f9a02cf2ff5bacaf7b8719a07ce20035f6eae50d2a6fe771592a9642",
+      "size": 22708
+    },
+    {
+      "path": "src/capy_outcome_runtime/encar_watcher_build.py",
+      "sha256": "70b4ad22dcde0d260f67a445bdc246817896d4bb0179c5a9eed3c1bfa386476c",
+      "size": 4867
+    },
+    {
+      "path": "src/capy_outcome_runtime/encar_watcher_dispatcher.py",
+      "sha256": "5ed6f461b985b8ff2e35ce58e31b416bf8df7e46449fada7a31e9acaff49fd2c",
+      "size": 1309
+    },
+    {
+      "path": "src/capy_outcome_runtime/encar_watcher_operations.py",
+      "sha256": "14b22f9720c882afafda246b4d367623367316297af4f886985d12bd12e47812",
+      "size": 27967
+    },
+    {
+      "path": "src/capy_outcome_runtime/encar_watcher_runtime.py",
+      "sha256": "372988f58b20fb94b6f73054cc92ada0d5f8b0df6439dbe184b6e38811e41469",
+      "size": 42639
+    },
+    {
+      "path": "src/capy_outcome_runtime/executor.py",
+      "sha256": "2f8cfe7416457045ae85137c82b395893041a785acd11173e0cf780c9f3ea461",
+      "size": 7236
+    },
+    {
+      "path": "src/capy_outcome_runtime/fedex.py",
+      "sha256": "041192f4a28d8fc2f859d39da22ae89faa0ff34b0a44274fcd221e83ec5dae5d",
+      "size": 9115
+    },
+    {
+      "path": "src/capy_outcome_runtime/fedex_oracle.py",
+      "sha256": "72e4298dc3279b0eac1cc35f46d569b81325b6055dea5f387315d692eaf9a0e5",
+      "size": 17446
+    },
+    {
+      "path": "src/capy_outcome_runtime/generic_build.py",
+      "sha256": "c1b82e37681e182dfce04129807cfb09ed4f88695b14e1b8fb53a02029742ff2",
+      "size": 10898
+    },
+    {
+      "path": "src/capy_outcome_runtime/generic_build_runtime.py",
+      "sha256": "a19c81554f145d9e0aca8aed5730768bb4fb4ea8c81365a192c3b6136e087aee",
+      "size": 40361
+    },
+    {
+      "path": "src/capy_outcome_runtime/interaction_contracts.py",
+      "sha256": "391ad96d74fe4efdb1081c6cd79bead46845d03c25ffd6b472d6fa9a866324b8",
+      "size": 19217
+    },
+    {
+      "path": "src/capy_outcome_runtime/launcher.py",
+      "sha256": "51603d403313353612c0a0b13b74894788d84aecdd697d932098a014dad2869c",
+      "size": 11266
+    },
+    {
+      "path": "src/capy_outcome_runtime/model.py",
+      "sha256": "c73a536d82e2a23a12c4302a740b2578ba65b4154568b6d8024b56e44fd12648",
+      "size": 15529
+    },
+    {
+      "path": "src/capy_outcome_runtime/portable_interfaces.py",
+      "sha256": "2b674deef8185a202ca95bed279e9ead98fa9e622930da861ced2196f4b2e945",
+      "size": 14999
+    },
+    {
+      "path": "src/capy_outcome_runtime/presentation.py",
+      "sha256": "e25d23569ee6cdf14729e72ad1bfff2594398e0aaceaba0f65147a4855e87ab2",
+      "size": 12847
+    },
+    {
+      "path": "src/capy_outcome_runtime/problem_cli.py",
+      "sha256": "14b3bf0c84758eb72267d94f4a8700732519d7dc396840ab661b3ef1b3e2528e",
+      "size": 2751
+    },
+    {
+      "path": "src/capy_outcome_runtime/productization.py",
+      "sha256": "6bd6e6729d2f7e498887f7acd6628e2517fdcc514bfd5d2b7923a43a2f910089",
+      "size": 11603
+    },
+    {
+      "path": "src/capy_outcome_runtime/release_cli.py",
+      "sha256": "1f0c4bc3cc8ce49891d578ec5eabcf2222263c6735a3cfa06c0d38f171b9cb97",
+      "size": 1187
+    },
+    {
+      "path": "src/capy_outcome_runtime/release_import.py",
+      "sha256": "a24a66645013f20f86a105b737e9af3a17766ec3a19638df84dffa6d6e538db6",
+      "size": 17923
+    },
+    {
+      "path": "src/capy_outcome_runtime/release_validation.py",
+      "sha256": "a03120b0e3a5d6960b3967d008dbade5ef39bafa2593f7d7e41960e8badec258",
+      "size": 5872
+    },
+    {
+      "path": "src/capy_outcome_runtime/runtime.py",
+      "sha256": "f650ea78edfb140637bdefcd9d281697c5202eedaf207c5ce59d95de39b00584",
+      "size": 43043
+    },
+    {
+      "path": "src/capy_outcome_runtime/semantic.py",
+      "sha256": "25c9c9580db9744e6b4e1699c2494f4fa7044509cfa9684ab37fad12bc896967",
+      "size": 43309
+    },
+    {
+      "path": "src/capy_outcome_runtime/semantic_dispatch.py",
+      "sha256": "67feda478802b471494b44a561abe8ac67000c9ff85f8faff7b47a1716b0afa7",
+      "size": 22036
+    },
+    {
+      "path": "src/capy_outcome_runtime/shared_host.py",
+      "sha256": "7fec0534630493d3f648a19729e18df95cce40dc65b9a8a0d8c4f2b48ebbe804",
+      "size": 7081
+    },
+    {
+      "path": "src/capy_outcome_runtime/store.py",
+      "sha256": "5952818b3fdd2416272d92411b540aa2b6c42d6fa4ba7df1f4dbe298e1d0e5d6",
+      "size": 56742
+    },
+    {
+      "path": "src/capy_outcome_runtime/team.py",
+      "sha256": "5b4ca099c260e30989d3988da85dd671ae588e0deb9cfe7fba58ad236da0dab7",
+      "size": 13756
+    },
+    {
+      "path": "src/capy_outcome_runtime/ui/__init__.py",
+      "sha256": "ae13e519b7ffe5aaaf40ab14b34b6dbbe55c3d45f9746ef7423ea2d0236138c5",
+      "size": 2013
+    },
+    {
+      "path": "src/capy_outcome_runtime/ui/assets.py",
+      "sha256": "0abaead10708c3921fd7a549fdbaee3c0977b6a65b00013760aee14fce318872",
+      "size": 23315
+    },
+    {
+      "path": "src/capy_outcome_runtime/ui/enhancements.py",
+      "sha256": "5e69165700351a4818acdd4c25a564b1ecb15ec3bfe65b28bf075fc38beb3f38",
+      "size": 6636
+    },
+    {
+      "path": "src/capy_outcome_runtime/ui/models.py",
+      "sha256": "5dca6566b3acafa9d06336bec106b16dafb7e90c45f201721217dfc3148f65b8",
+      "size": 24122
+    },
+    {
+      "path": "src/capy_outcome_runtime/ui/patterns.py",
+      "sha256": "f333709d25d375ded7e59cfe2d72d72e3972c2aba238e44efbd7cc8b11dfd136",
+      "size": 3735
+    },
+    {
+      "path": "src/capy_outcome_runtime/ui/render.py",
+      "sha256": "cad7b4e8427e6461e377c6d7d5d24df583f50e57363e38b14fafbda06d475dbe",
+      "size": 22493
+    },
+    {
+      "path": "src/capy_outcome_runtime/ui/shell.py",
+      "sha256": "3da109734b9dd3fcb90fcd50b3be9e71ba9206ad8258481b9a7cd022dce3cbec",
+      "size": 6712
+    },
+    {
+      "path": "src/capy_outcome_runtime/ui_compatibility.py",
+      "sha256": "3d2bf46b655940ca95170d311516b3e5745c05b01b6a1bcd77e45fa92c2990f6",
+      "size": 7240
+    },
+    {
+      "path": "src/capy_outcome_runtime/web.py",
+      "sha256": "b9ea417818f160d52df53cd79523139c20a8ecf6da78c604c569a854654126c9",
+      "size": 115762
+    },
+    {
+      "path": "src/capy_outcome_runtime/world.py",
+      "sha256": "5208cfdcffcd6ebcf5a0fce6a8e3a7348698e8e99d4dc6798f6217bcb6cd5106",
+      "size": 8293
+    },
+    {
+      "path": "tests/test_accepted_release_controls.py",
+      "sha256": "9c43ad180879babd48ba4760ee285bd7968ee50186b47b38caaab667e15e114a",
+      "size": 18630
+    },
+    {
+      "path": "tests/test_chat_timeline_order.py",
+      "sha256": "ba82e83c3b3fc4e4b8ac88a67c81229aacaa73fa9ef21440e4482ab032c8c18a",
+      "size": 847
+    },
+    {
+      "path": "tests/test_portable_interfaces.py",
+      "sha256": "3a47109ec71b2b5770a586a427af21fbbf96829c46e4aefe750f37cafbf36dc5",
+      "size": 17836
+    },
+    {
+      "path": "tests/test_portable_web_repairs.py",
+      "sha256": "141a78d9f4dce1078abffafad13e36f4e485e531077a5e962d0540d0876e06f3",
+      "size": 3627,
+      "source_sha256": "727ab3351fa2e2a02d58b2227ef10f1550fc43918a15df88e854fc9bb8b76b75",
+      "transformation": "Import the identical synthetic actor helper from local actors.py; omit unrelated private-campaign-dependent test module."
+    },
+    {
+      "path": "tests/test_release_import.py",
+      "sha256": "de953f4cc982f8635a44914386144e08c513b6a389a483a3e4797dc7a0ab05c9",
+      "size": 7542
+    }
+  ],
+  "scope": "Audited runtime source, focused synthetic tests and accepted synthetic application handoffs. No inherited Git history or operational/customer evidence.",
+  "authority": "Supporting publication and CI snapshot; no production authority transfer.",
+  "generated_files": [
+    {
+      "path": "tests/actors.py",
+      "sha256": "900dabbd027a98de35b1e18fe3e4b155bd4402f441a22b561522318cd229f313",
+      "purpose": "Exact actor helper extracted from source test_closed_world_application_guidance.py; no private fixture dependency."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+"""Provider-neutral exports, loaded lazily so pure formats remain portable."""
+from importlib import import_module
+
+_EXPORTS = {'CapabilityDescriptor': ('model', 'CapabilityDescriptor'), 'RuntimeFailure': ('model', 'RuntimeFailure'), 'ExecutionIdentity': ('launcher', 'ExecutionIdentity'), 'LocalProcessLauncher': ('launcher', 'LocalProcessLauncher'), 'SystemdTransientLauncher': ('launcher', 'SystemdTransientLauncher'), 'InvocationResult': ('runtime', 'InvocationResult'), 'OutcomeRuntime': ('runtime', 'OutcomeRuntime'), 'RuntimeStore': ('store', 'RuntimeStore'), 'WorldBuilder': ('world', 'WorldBuilder'), 'WorldSnapshot': ('world', 'WorldSnapshot'), 'ConnectionBroker': ('connections', 'ConnectionBroker'), 'ConnectionControl': ('connections', 'ConnectionControl'), 'ConnectionInstance': ('connections', 'ConnectionInstance'), 'LocalSecretResolver': ('connections', 'LocalSecretResolver'), 'ChatStore': ('chat', 'ChatStore'), 'ProductController': ('controller', 'ProductController'), 'EncarWatcherLunaEvaluator': ('encar_watcher_runtime', 'EncarWatcherLunaEvaluator'), 'EncarWatcherRuntime': ('encar_watcher_runtime', 'EncarWatcherRuntime'), 'AccessStore': ('access', 'AccessStore'), 'ActorContext': ('access', 'ActorContext'), 'AuthenticatedClient': ('access', 'AuthenticatedClient'), 'ClaimPreview': ('access', 'ClaimPreview'), 'Redemption': ('access', 'Redemption'), 'ReconciliationResult': ('team', 'ReconciliationResult'), 'TeamSoftwareProjection': ('team', 'TeamSoftwareProjection'), 'TeamSoftwareShare': ('team', 'TeamSoftwareShare'), 'TeamSoftwareStore': ('team', 'TeamSoftwareStore'), 'FedExConnectionStore': ('fedex', 'FedExConnectionStore'), 'normalize_connection': ('fedex', 'normalize_connection'), 'validate_connection_source': ('fedex', 'validate_connection_source'), 'FedExOracleClient': ('fedex_oracle', 'FedExOracleClient'), 'build_rate_request': ('fedex_oracle', 'build_rate_request'), 'compare_quote_results': ('fedex_oracle', 'compare_quote_results'), 'normalize_rate_response': ('fedex_oracle', 'normalize_rate_response'), 'parse_package_csv': ('fedex_oracle', 'parse_package_csv'), 'BuilderService': ('build', 'BuilderService'), 'verify_zip_bytes': ('build', 'verify_zip_bytes'), 'InteractionContractRegistry': ('interaction_contracts', 'InteractionContractRegistry'), 'FixtureAdapter': ('semantic', 'FixtureAdapter'), 'OpenRouterLunaAdapter': ('semantic', 'OpenRouterLunaAdapter'), 'SemanticResult': ('semantic', 'SemanticResult'), 'decision_schema_for_world': ('semantic', 'decision_schema_for_world'), 'validate_decision_for_world': ('semantic', 'validate_decision_for_world')}
+
+__all__ = list(_EXPORTS)
+
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    module, attribute = _EXPORTS[name]
+    value = getattr(import_module("." + module, __name__), attribute)
+    globals()[name] = value
+    return value

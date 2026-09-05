@@ -1,0 +1,29 @@
+{
+  "repository": "gazeromo/capy-application-acceptor",
+  "commit": "0991cd36ea5b7c12d1d7e5067bb9a0430e0c0bdc",
+  "files": {
+    "candidate.py": "2d792fa09cea122546dfd482c403152bb1ad880fad2848569cb60df27c428774",
+    "codec.py": "5aae8ddacef2de96344598293bf94c52c131c776d1942940fedab770be0e7c48",
+    "validation.py": "700f9bcc2bb3a29557a84a54155cd6f37629100b2f76f1d200a2ae2eed6683f8",
+    "constants.py": "e168926bbc327382087f10a975c087483007e8ec4d9362e94119eddade9ab7ab",
+    "errors.py": "6c8e932672cf4756c619700fec6297caef0a55536fa57212ff54659024b5f026",
+    "interaction.py": "2fd994bbfcab321d4da58ebc07d227d5a71ae65d26d6f5e9eef11b73217c0a7e",
+    "models.py": "35f095260f4e463fa3a27c95668542b327b4ec8183279a2e4ecd8ffae6922c6b",
+    "projection.py": "a5c51d159cffcbf8294a1b5c333d0e5ed084957f753d5e18330be9a15c3da72f"
+  },
+  "runtime_modifications": {
+    "codec.py": {
+      "base_runtime_sha256": "5aae8ddacef2de96344598293bf94c52c131c776d1942940fedab770be0e7c48",
+      "modified_sha256": "245a46a1140417cbc23f4c17ce20f58e6f7daf7b6e9bb9a144423f929362287d",
+      "source_hash_policy": "files retains original accepted source hashes; runtime modifications are recorded separately.",
+      "preserved_runtime_changes": [
+        "parse_strict_json rejects unencodable non-finite and surrogate values before depth validation."
+      ],
+      "changes": [
+        "check_casefold_collisions validates all implicit path prefixes, rejects case spelling aliases and file/directory conflicts, and preserves exact shared directories."
+      ],
+      "reason": "Independent runtime import review found case-insensitive directory aliases could merge at extraction and fail inspection after visibility commit.",
+      "scope": "Runtime vendored helper only; protected acceptor source remains unchanged."
+    }
+  }
+}
