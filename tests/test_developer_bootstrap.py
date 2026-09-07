@@ -8,12 +8,21 @@ from capy_outcome_runtime.developer_bootstrap import BootstrapHost, configured_b
 from capy_outcome_runtime._bootstrap_manifest import ManifestError, canonical
 
 
+def write_artifact(path, raw):
+    # Windows maps write bits to the read-only attribute. Publish immutable
+    # fixtures explicitly; intentional test mutations restore owner write first.
+    if path.exists():
+        path.chmod(0o600)
+    path.write_bytes(raw)
+    path.chmod(0o444)
+
+
 def fixture(root):
     def item(name,raw):
-        (root/name).write_bytes(raw)
+        write_artifact(root/name,raw)
         return dict(filename=name,sha256=hashlib.sha256(raw).hexdigest(),size_bytes=len(raw))
     m=dict(schema='capy.harness-bootstrap/v0',release_id='0.7.0-probe',origin='https://127.0.0.1:18891',site_id='site_'+'1'*32,scope='local-coding-client',protocols={'developer':'harness-first/v0','runtime':'harness-first/v0'},developer=dict(version='0.7.0',artifact=item('capy_developer-0.7.0-py3-none-any.whl',b'test inert wheel')),installer=item('capy-bootstrap.py',b'# test inert installer'),platforms=['macos-arm64'],clients={x:dict(version=v,transport='MCP_STDIO') for x,v in [('muse','1.0.3'),('codex','0.153.4')]},prerequisites=dict(python_minimum='3.11',python_exact='3.13.7',uv={}))
-    (root/'manifest.json').write_bytes(canonical(m))
+    write_artifact(root/'manifest.json',canonical(m))
     return m
 
 
@@ -35,7 +44,7 @@ def test_immutable_files_and_same_manifest_guide(tmp_path):
         if path.endswith('.py'):assert handler.headers['Content-Type']=='application/octet-stream' and 'attachment' in handler.headers['Content-Disposition']
     assert h.digest in h.markdown() and m['installer']['sha256'] in h.markdown()
     assert m['origin']+'/developer/connect.md' in h.prompt()
-    (tmp_path/'capy-bootstrap.py').write_bytes(b'changed after load')
+    write_artifact(tmp_path/'capy-bootstrap.py',b'changed after load')
     handler=Handler();h.route(handler,'GET',urlsplit(h.prefix+'capy-bootstrap.py'))
     assert handler.wfile.getvalue()==b'# test inert installer'
 
@@ -47,9 +56,9 @@ def test_exact_routes_only(tmp_path,path):
 def test_missing_modified_symlink_and_wrong_site_fail_before_advertising(tmp_path):
     m=fixture(tmp_path)
     with pytest.raises(ManifestError):BootstrapHost(tmp_path,origin='https://wrong.example',site_id=m['site_id'])
-    p=tmp_path/'capy-bootstrap.py';p.write_bytes(b'wrong')
+    p=tmp_path/'capy-bootstrap.py';write_artifact(p,b'wrong')
     with pytest.raises(ManifestError):host(tmp_path,m)
-    p.unlink();outside=tmp_path/'outside';outside.write_bytes(b'# test inert installer');p.symlink_to(outside)
+    p.chmod(0o600);p.unlink();outside=tmp_path/'outside';write_artifact(outside,b'# test inert installer');p.symlink_to(outside)
     with pytest.raises(ManifestError):host(tmp_path,m)
     p.unlink()
     with pytest.raises(OSError):host(tmp_path,m)
@@ -64,14 +73,14 @@ def test_prerequisite_script_served_with_exact_guide_digest(tmp_path):
     from capy_outcome_runtime._bootstrap_manifest import artifact_url
     m=fixture(tmp_path)
     def item(name, raw):
-        (tmp_path/name).write_bytes(raw)
+        write_artifact(tmp_path/name,raw)
         return dict(filename=name,sha256=hashlib.sha256(raw).hexdigest(),size_bytes=len(raw))
     python=item('python.tar.gz',b'inert python archive')
     key='cpython-3.13.7-darwin-aarch64-none'
     record=dict(name='cpython',arch=dict(family='aarch64',variant=None),os='darwin',libc='none',major=3,minor=13,patch=7,prerelease='',url=artifact_url(m,python),sha256=python['sha256'],variant=None,build='20250918')
     pin=dict(version='0.9.0',artifact=item('uv.tar.gz',b'inert uv archive'),python_artifact=python,python_key=key,downloads=item('downloads.json',canonical({key:record})))
     m['prerequisites']['uv']['macos-arm64']=pin
-    (tmp_path/'manifest.json').write_bytes(canonical(m))
+    write_artifact(tmp_path/'manifest.json',canonical(m))
     h=host(tmp_path,m);path,digest,size=h.prerequisite_scripts['macos-arm64']
     handler=Handler();h.route(handler,'GET',urlsplit(path))
     script=handler.wfile.getvalue()
@@ -82,7 +91,7 @@ def test_prerequisite_script_served_with_exact_guide_digest(tmp_path):
     # Even a correctly hashed metadata artifact cannot redirect Python elsewhere.
     record['url']='https://other.example/python.tar.gz'
     pin['downloads']=item('downloads.json',canonical({key:record}))
-    (tmp_path/'manifest.json').write_bytes(canonical(m))
+    write_artifact(tmp_path/'manifest.json',canonical(m))
     with pytest.raises(ManifestError):host(tmp_path,m)
 
 

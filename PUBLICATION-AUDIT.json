@@ -1,7 +1,7 @@
 {
   "date": "2026-09-07",
   "decision": "Audited update eligible for public CI publication",
-  "source_commit": "39a6bca23cd94ba8579834243fbe3ee80304c948",
+  "source_commit": "573b2055ecb79892edc0650469e82c16e2b6747f",
   "public_base": "d52284a4194f6252eb648c25a5e3ceb99b5cdc94",
   "runtime_source_files": 73,
   "runtime_source_unchanged": true,

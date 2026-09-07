@@ -1,6 +1,6 @@
 {
   "schema": "capy.public-source-snapshot/v0",
-  "source_commit": "39a6bca23cd94ba8579834243fbe3ee80304c948",
+  "source_commit": "573b2055ecb79892edc0650469e82c16e2b6747f",
   "source_package_tree": "b97bf7829958a3ac9a9089bd5bfa41fb49fd11a9",
   "files": [
     {
@@ -490,9 +490,9 @@
     },
     {
       "path": "tests/test_developer_bootstrap.py",
-      "sha256": "b01663051174d3762fd2efa27cdfb7475cf241233c91707f99abaaddef1d6fba",
-      "size": 6250,
-      "source_commit": "39cdbc65ffe230481dc55ff82167e84f336d90c8"
+      "sha256": "01fcff6bd91df02179e1eb24dbcd436fc54e280ef7add7f8ae4ed752644a246d",
+      "size": 6563,
+      "source_commit": "573b2055ecb79892edc0650469e82c16e2b6747f"
     },
     {
       "path": "tests/test_developer_link.py",
