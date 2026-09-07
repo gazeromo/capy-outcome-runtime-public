@@ -8,7 +8,6 @@ import hashlib
 import html
 import json
 import os
-import pwd
 import re
 import secrets
 import traceback
@@ -102,6 +101,7 @@ def read_private(path: Path) -> str:
 
 
 def linux_identity(name: str) -> ExecutionIdentity:
+    import pwd
     account = pwd.getpwnam(name)
     return ExecutionIdentity(account.pw_name, account.pw_name, account.pw_uid, account.pw_gid)
 

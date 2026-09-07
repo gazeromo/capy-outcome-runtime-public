@@ -7,7 +7,7 @@ history, operational records, customer data, conversations, or credentials.
 
 `SNAPSHOT.json` pins the source commit and SHA-256 of every exported file. All73
 runtime Python/data files are unchanged from source snapshot
-`39cdbc65ffe230481dc55ff82167e84f336d90c8`. The only test adaptation extracts an
+`39a6bca23cd94ba8579834243fbe3ee80304c948`. The only test adaptation extracts an
 identical synthetic actor helper into a local module, removing a dependency on
 unrelated campaign tests. No runtime code was changed for publication.
 

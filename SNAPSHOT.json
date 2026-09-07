@@ -1,7 +1,7 @@
 {
   "schema": "capy.public-source-snapshot/v0",
-  "source_commit": "39cdbc65ffe230481dc55ff82167e84f336d90c8",
-  "source_package_tree": "f3c22e5e5953a4c4ebfa3de1bb806c1d496cea30",
+  "source_commit": "39a6bca23cd94ba8579834243fbe3ee80304c948",
+  "source_package_tree": "b97bf7829958a3ac9a9089bd5bfa41fb49fd11a9",
   "files": [
     {
       "path": "campaigns/accepted_release_import_preview_v0/inputs/A_verified_total/candidate.capyrc",
@@ -467,9 +467,9 @@
     },
     {
       "path": "src/capy_outcome_runtime/web.py",
-      "sha256": "222514343c6b3fcc6e1c28fbd78949b9fd579bed859281df6f759ca905872e20",
-      "size": 118388,
-      "source_commit": "39cdbc65ffe230481dc55ff82167e84f336d90c8"
+      "sha256": "83a8d5dac1812de0a9200c20cd428e60e553447eda558d56ed10614b51cf5b98",
+      "size": 118392,
+      "source_commit": "39a6bca23cd94ba8579834243fbe3ee80304c948"
     },
     {
       "path": "src/capy_outcome_runtime/world.py",

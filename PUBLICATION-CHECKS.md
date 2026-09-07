@@ -16,3 +16,5 @@ configuration/evidence. Private history and runtime authority remain elsewhere.
 ## Harness-first source update
 
 Snapshot source39cdbc65 contains73 byte-identical runtime files. Selected exported tests pass89 cases locally (Python3.12.9); one expected duplicate-member warning belongs to an adversarial archive test. Gitleaks directory scan with archive depth8, decoding depth5 and allow-comments disabled reports zero findings. No upstream history or new campaign content was imported. Hosted pure/harness-core checks now target all three operating systems; integration remains Ubuntu. Hosted outcomes are recorded in Actions, not inferred from local tests.
+
+First current-source public run34084270114 found a Windows collection failure: web.py imported Unix pwd at module load. Authoritative source follow-up moves pwd into linux_identity; portable web import also passes with Unix account imports denied, and40 focused tests pass locally. Snapshot refreshed from that exact commit; no public-only runtime patch. Earlier failed run retained.
