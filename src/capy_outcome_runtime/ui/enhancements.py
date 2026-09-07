@@ -130,8 +130,71 @@ FORM_PROTECTION_ENHANCEMENT = r'''
 })();
 '''.strip()
 
+DEVELOPER_STATUS_ENHANCEMENT = r''' 
+(() => {
+  if (!document.getElementById("developer-status")) return;
+  const openForm = document.querySelector("form[data-developer-open]");
+  const fallback = document.getElementById("developer-launch-fallback");
+  const notice = document.getElementById("developer-launch-notice");
+  let opening = false;
+  if (openForm && fallback && notice) openForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (opening) return;
+    opening = true;
+    const button = openForm.querySelector("button");
+    button.disabled = true;
+    fallback.hidden = true;
+    notice.textContent = "Preparing a fresh Codex launch…";
+    try {
+      const destination = new URL(openForm.action, window.location.href);
+      if (destination.origin !== window.location.origin || destination.pathname !== window.location.pathname + "/open" || destination.search || destination.hash) throw new Error("invalid action");
+      const response = await fetch(destination.href, {method: "POST", credentials: "same-origin", cache: "no-store", body: new URLSearchParams(new FormData(openForm))});
+      const returned = new URL(response.url);
+      if (!response.ok || returned.origin !== window.location.origin || returned.pathname !== window.location.pathname || returned.search || returned.hash) throw new Error("launch unavailable");
+      const markup = await response.text();
+      if (markup.length > 262144) throw new Error("response too large");
+      const page = new DOMParser().parseFromString(markup, "text/html");
+      const prepared = page.getElementById("developer-launch-fallback");
+      const pattern = /^capy-dev:\/\/handoff\/(hof_[0-9a-f]{32})\?site=(site_[0-9a-f]{32})&launch=([1-9][0-9]{0,9})$/;
+      const prior = pattern.exec(fallback.getAttribute("href"));
+      const href = prepared && prepared.getAttribute("href");
+      const next = typeof href === "string" && pattern.exec(href);
+      if (!prior || !next || next[1] !== prior[1] || next[2] !== prior[2] || Number(next[3]) <= Number(prior[3]) || Number(next[3]) > 2147483647) throw new Error("invalid launch link");
+      fallback.setAttribute("href", href);
+      fallback.hidden = false;
+      notice.textContent = "Codex launch requested. If it did not open, use Launch prepared task. It may open a new conversation in the same workspace.";
+      window.location.assign(href);
+    } catch (_) {
+      notice.textContent = "Could not confirm a fresh launch. Refresh status, then use Launch prepared task or press Open Codex again.";
+    } finally {
+      opening = false;
+      button.disabled = false;
+    }
+  });
+  let stopped = false;
+  const poll = async () => {
+    if (stopped) return;
+    try {
+      if (!document.hidden) {
+        const response = await fetch(window.location.pathname, {credentials: "same-origin", redirect: "error", cache: "no-store"});
+        if (response.status === 403 || response.status === 404) { stopped = true; return; }
+        if (!response.ok) throw new Error("status unavailable");
+        const markup = await response.text();
+        if (markup.length > 262144) throw new Error("status too large");
+        const page = new DOMParser().parseFromString(markup, "text/html");
+        const next = page.getElementById("developer-status"), current = document.getElementById("developer-status");
+        if (next && current && !current.contains(document.activeElement) && next.innerHTML !== current.innerHTML) current.replaceChildren(...next.childNodes);
+      }
+    } catch (_) { /* Retain the last confirmed report. Manual Refresh remains available. */ }
+    window.setTimeout(poll, 10000);
+  };
+  window.setTimeout(poll, 10000);
+})();
+'''.strip()
+
 ENHANCEMENTS = {
     "none": "",
+    "developer-status": DEVELOPER_STATUS_ENHANCEMENT,
     "chat": CHAT_ENHANCEMENT,
     "form-protection": FORM_PROTECTION_ENHANCEMENT,
 }

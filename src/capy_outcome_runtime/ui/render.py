@@ -341,13 +341,14 @@ def render_entity(entity: UIEntity) -> SafeHtml:
 def render_collection(collection: UICollection) -> SafeHtml:
     header_actions = render_action(collection.primary_action) if collection.primary_action else _safe("")
     controls = _join(render_field(item) for item in collection.controls)
+    controls_html = f'<div class="ui-collection-controls">{controls}</div>' if controls else ""
     body = _join(render_entity(item) for item in collection.entities) if collection.entities else render_notice(collection.empty_state)
     inspector = render_inspector(collection.selected_entity.inspector) if collection.selected_entity and collection.selected_entity.inspector else _safe("")
     return _safe(
         '<section class="ui-pattern ui-collection"><header class="ui-pattern-header">'
         f'<div><p class="ui-kicker">Collection</p><h2>{_e(collection.title)}</h2>'
         f'<p>{collection.count} {"record" if collection.count == 1 else "records"}</p></div>{header_actions}</header>'
-        f'{f"<div class=\"ui-collection-controls\">{controls}</div>" if controls else ""}'
+        f'{controls_html}'
         f'<div class="ui-workbench"><div class="ui-entity-list">{body}</div>{inspector}</div></section>'
     )
 

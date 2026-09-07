@@ -5,9 +5,9 @@ provider-free tests with fresh Git history. It is a supporting publication and C
 surface. It does not transfer production authority or publish private project
 history, operational records, customer data, conversations, or credentials.
 
-`SNAPSHOT.json` pins the source commit and SHA-256 of every exported file. All58
+`SNAPSHOT.json` pins the source commit and SHA-256 of every exported file. All73
 runtime Python/data files are unchanged from source snapshot
-`c1ba85a2197667a75d3706d8a282b09181217b50`. The only test adaptation extracts an
+`573b2055ecb79892edc0650469e82c16e2b6747f`. The only test adaptation extracts an
 identical synthetic actor helper into a local module, removing a dependency on
 unrelated campaign tests. No runtime code was changed for publication.
 
@@ -23,14 +23,14 @@ business application acceptance or call a live model/business provider.
 Use Python3.13 or newer for runtime/interface tests:
 
 ```sh
-python -m pip install pytest
+python -m pip install pytest==8.4.2
 python tools/verify_snapshot.py
 PYTHONPATH=src:tests python -m pytest -q tests
 ```
 
 The CI matrix separately tests pure format/projection on Ubuntu, macOS and Windows
 with Python3.11. Native application execution on macOS or Windows is not claimed.
-The Ubuntu focused integration job uses Python3.13. It does not substitute for
+Bootstrap and linked-client authority tests also run on all three platforms with Python3.11. The Ubuntu focused integration job uses Python3.13. It does not substitute for
 separately recorded real Linux systemd product qualification, and is not the full
 private legacy regression suite.
 
