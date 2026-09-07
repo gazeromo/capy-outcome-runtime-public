@@ -11,6 +11,7 @@ import sqlite3
 import stat
 import sys
 import tempfile
+import threading
 import uuid
 import zipfile
 from contextlib import contextmanager
@@ -85,6 +86,7 @@ class RuntimeStore:
     """Owns durable control truth; callers never infer bindings from paths."""
 
     def __init__(self, root: Path):
+        self._transaction = threading.local()
         self.root = root.resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.database = self.root / "control.sqlite3"
@@ -132,6 +134,16 @@ class RuntimeStore:
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
+        active = getattr(self._transaction, "connection", None)
+        if active is not None:
+            # Nested store/access/team operations share the outer atomic boundary.
+            # A caught nested failure still poisons the enclosing transaction.
+            try:
+                yield active
+            except BaseException:
+                self._transaction.failed = True
+                raise
+            return
         connection = sqlite3.connect(self.database)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
@@ -144,6 +156,25 @@ class RuntimeStore:
             connection.commit()
         finally:
             connection.close()
+
+    @contextmanager
+    def transaction(self) -> Iterator[sqlite3.Connection]:
+        """Serialize and atomically commit composed store operations in this thread."""
+        if getattr(self._transaction, "connection", None) is not None:
+            with self.connect() as connection:
+                yield connection
+            return
+        with self.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            self._transaction.connection = connection
+            self._transaction.failed = False
+            try:
+                yield connection
+                if self._transaction.failed:
+                    raise RuntimeFailure("TRANSACTION_ABORTED")
+            finally:
+                self._transaction.connection = None
+                self._transaction.failed = False
 
     def _initialize(self) -> None:
         with self.connect() as db:
@@ -718,6 +749,10 @@ class RuntimeStore:
         return dict(row)
 
     def accepted_import(self, capability_id: str, version_digest: str) -> dict[str, Any] | None:
+        from .release_admission import lookup_admission
+        admitted = lookup_admission(self, capability_id, version_digest)
+        if admitted is not None:
+            return admitted
         from .release_import import lookup_import
         return lookup_import(self, capability_id, version_digest)
 
@@ -729,6 +764,9 @@ class RuntimeStore:
     def devkit_environment(self, capability_id: str, version_digest: str) -> Path:
         imported = self.accepted_import(capability_id, version_digest)
         if imported is not None:
+            if imported.get("schema") == "capy.runtime-accepted-release-admission/v0":
+                from .release_admission import admitted_environment
+                return admitted_environment(self, imported)
             from .release_import import imported_environment
             return imported_environment(self, imported)
         publication = self.devkit_publication(capability_id, version_digest)

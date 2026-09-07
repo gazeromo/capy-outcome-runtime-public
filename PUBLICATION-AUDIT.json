@@ -1,26 +1,21 @@
 {
-  "date": "2026-09-06",
-  "decision": "Selected snapshot eligible for public publication",
-  "source_commit": "c1ba85a2197667a75d3706d8a282b09181217b50",
-  "history": "Fresh repository; no upstream Git objects or references copied",
-  "runtime_source_files": 58,
+  "date": "2026-09-07",
+  "decision": "Audited update eligible for public CI publication",
+  "source_commit": "39cdbc65ffe230481dc55ff82167e84f336d90c8",
+  "public_base": "d52284a4194f6252eb648c25a5e3ceb99b5cdc94",
+  "runtime_source_files": 73,
   "runtime_source_unchanged": true,
-  "focused_tests_passed_locally": 49,
-  "local_python": "3.14",
+  "history": "Exported selected blobs only; no private Git objects or references imported. Public ancestry retained.",
+  "focused_tests_passed_locally": 89,
+  "local_python": "3.12.9",
   "secret_scanner": {
     "name": "Gitleaks",
     "version": "8.30.1",
     "mode": "dir; max-archive-depth8; max-decode-depth5; built-in allow comments disabled; default rules; redacted output",
     "findings": 0
   },
-  "archive_inspection": {
-    "leaf_members": 162,
-    "unpacked_bytes": 305084,
-    "non_text_members": 0,
-    "personal_address_or_private_transaction_indicators": 0
-  },
-  "manual_scope": "Selected source, synthetic tests/fixtures, manifest and neutral documentation. Only loopback IPv4 observed. No customer transaction records, production IPs, personal filesystem paths, screenshots, databases, provider transcripts or operational receipts included.",
-  "excluded": "All upstream history and campaign content except6 exact synthetic handoff files. No private repo credentials required.",
-  "test_adaptation": "Isolated identical actor helper so the focused interface test does not import unrelated private-campaign-dependent tests. Runtime and pure portability controls unchanged.",
+  "scope_review": "New runtime modules and three synthetic harness tests; URL/path scan found loopback and synthetic test/example hosts only. Existing audited fixtures retained, no new campaign exports.",
+  "excluded": "Private campaign evidence, operational state, credentials, provider conversations, customer data, local filesystem artifacts and upstream history.",
+  "coverage": "Exact private workflow pure and harness-core selections, plus retained public integration suite. Not the full private regression suite or native runtime execution qualification.",
   "limits": "Credential scanning plus targeted content review is evidence, not a guarantee of absence of every conceivable sensitive value. This is not a security certification or license change."
 }

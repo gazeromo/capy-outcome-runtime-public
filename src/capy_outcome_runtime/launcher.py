@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import subprocess
 import sys
 import uuid
@@ -138,7 +139,9 @@ class SystemdTransientLauncher:
         identity_resolver,
         systemd_run: str = "/usr/bin/systemd-run",
         systemctl: str = "/usr/bin/systemctl",
+        *, private_network: bool = False,
     ):
+        self.private_network = private_network
         self.identity_resolver = identity_resolver
         self.systemd_run = systemd_run
         self.systemctl = systemctl
@@ -203,6 +206,8 @@ class SystemdTransientLauncher:
             "--property=StandardOutput=null",
             "--property=StandardError=null",
         ]
+        if self.private_network:
+            command.append("--property=PrivateNetwork=yes")
         command.extend(f"--property=BindReadOnlyPaths={path}" for path in read_only_paths)
         command.extend(f"--property=BindPaths={path}" for path in writable_paths)
         completed = subprocess.run(
@@ -234,6 +239,43 @@ class SystemdTransientLauncher:
             return "missing"
         values = [item.strip() for item in completed.stdout.splitlines()]
         return ":".join(values) if values else "missing"
+
+    def stop_owned_unit(self, unit: str, journal: Path, identity: ExecutionIdentity) -> bool:
+        """Stop only an exact persisted preview journal owned by this identity.
+
+        Permission/query failures never prove absence. The caller also verifies
+        its durable executor record and journal digest before using this API.
+        """
+        if (not re.fullmatch(r"capy-outcome-invocation-[0-9a-f]{32}", unit)
+            or journal.name != unit.removeprefix("capy-outcome-invocation-")
+            or not journal.is_absolute() or any(p.is_symlink() for p in (journal,*journal.parents))
+            or not isinstance(identity, ExecutionIdentity) or identity.uid <= 0 or identity.gid <= 0):
+            raise ValueError("invalid owned preview unit")
+        def observe():
+            result = subprocess.run([self.systemctl,"show",
+                "--property=LoadState,ActiveState,SubState,User,Group,WorkingDirectory,MainPID,ControlPID",
+                unit],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,timeout=5,check=False)
+            values = dict(line.split("=",1) for line in result.stdout.splitlines() if "=" in line)
+            required = {"LoadState","ActiveState","SubState","User","Group","WorkingDirectory","MainPID","ControlPID"}
+            if set(values) != required or result.returncode not in (0,1):
+                return None
+            if values["LoadState"] == "not-found" and values["ActiveState"] == "inactive" and values["MainPID"] == values["ControlPID"] == "0":
+                return "absent"
+            if result.returncode: return None
+            if (values["User"] not in (identity.user,str(identity.uid)) or
+                values["Group"] not in (identity.group,str(identity.gid)) or
+                values["WorkingDirectory"] != str(journal)):
+                raise ValueError("preview unit ownership mismatch")
+            return values
+        state=observe()
+        if state == "absent": return True
+        if state is None: return False
+        if state["ActiveState"] not in ("inactive","failed") or state["MainPID"] != "0" or state["ControlPID"] != "0":
+            result=subprocess.run([self.systemctl,"stop",unit],stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,timeout=10,check=False)
+            if result.returncode: return False
+            state=observe()
+        return state == "absent" or (isinstance(state,dict) and state["ActiveState"] in ("inactive","failed") and state["MainPID"] == state["ControlPID"] == "0")
 
     def command(
         self,

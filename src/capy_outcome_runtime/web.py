@@ -26,6 +26,9 @@ from typing import Any
 
 from .access import AccessStore, ActorContext, AuthenticatedClient
 from .chat import ChatStore
+from .developer_link import configured_link
+from .developer_link_web import route as developer_link_route, applications_section
+from .release_web import route as release_route
 from .controller import ProductController
 from .encar_watcher_runtime import EncarWatcherLunaEvaluator, EncarWatcherRuntime, QueuedWatcherEvaluator
 from .application_operations import ApplicationOperationRegistry
@@ -215,6 +218,9 @@ class Product:
         self.scope = "owner"
         self.runtime_store = RuntimeStore(args.runtime_root)
         self.access_store = AccessStore(self.runtime_store)
+        self.developer_link = configured_link(args, self.access_store)
+        from .developer_bootstrap import configured_bootstrap
+        self.developer_bootstrap = configured_bootstrap(args, self.developer_link)
         self.chat_store = ChatStore(args.chat_database)
         dispatch_enabled = bool(getattr(args, "semantic_dispatch", False))
         self.semantic_dispatch_store = (
@@ -412,8 +418,12 @@ class Product:
             provision_personal_workspace(personal_actor)
         self.team_startup_reconciliation = self.team_software.reconcile_all()
         self.origin = f"http://{args.bind}:{args.port}"
+        from .release_setup import configure
+        configure(self, args)
 
     def close(self) -> None:
+        if getattr(self, "release_workflow", None) is not None:
+            self.release_workflow.stop()
         if self.semantic_dispatch_stop is not None:
             self.semantic_dispatch_stop.set()
         if self.semantic_dispatch_thread is not None:
@@ -541,7 +551,10 @@ class Handler(BaseHTTPRequestHandler):
         headers: dict[str, str] | None = None,
         *,
         script_sha256: str | None = STANDARD_SCRIPT_SHA256,
+        referrer_policy: str = "no-referrer",
     ) -> None:
+        if referrer_policy not in {"no-referrer", "same-origin"}:
+            raise ValueError("Unsupported referrer policy")
         payload = value.encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -557,7 +570,7 @@ class Handler(BaseHTTPRequestHandler):
             "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; "
             f"base-uri 'none'; frame-ancestors 'none'{script_policy}",
         )
-        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Referrer-Policy", referrer_policy)
         for name, item in (headers or {}).items():
             self.send_header(name, item)
         self.end_headers()
@@ -728,6 +741,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urllib.parse.urlsplit(self.path)
+        if release_route(self, "GET", parsed):
+            return
+        if developer_link_route(self, "GET", parsed):
+            return
         if parsed.path == "/health":
             self.send_html("ok")
             return
@@ -838,6 +855,8 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_html(
                         self.application_page(authenticated, application_id),
                         script_sha256=APPLICATION_SCRIPT_SHA256,
+                        referrer_policy=("same-origin" if getattr(self.product, "release_activation", None)
+                                         is not None else "no-referrer"),
                     )
             elif parsed.path.startswith("/application-artifact/"):
                 parts = parsed.path.split("/")
@@ -862,6 +881,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urllib.parse.urlsplit(self.path)
+        if release_route(self, "POST", parsed):
+            return
+        if developer_link_route(self, "POST", parsed):
+            return
         application_context: tuple[AuthenticatedClient, str] | None = None
         try:
             if parsed.path.startswith("/claim/"):
@@ -1652,7 +1675,7 @@ class Handler(BaseHTTPRequestHandler):
             render_page_header(
                 "Applications", "Installed applications",
                 "Open the software available in this workspace. Opening an application uses stored state and does not run a source check.",
-            ), render_collection(collection)
+            ), render_collection(collection), applications_section(self, authenticated)
         )
         return self.product_shell(
             authenticated, title="Applications", active="applications", body=body,
@@ -1723,6 +1746,12 @@ class Handler(BaseHTTPRequestHandler):
         )
         not_for = "".join(f'<li>{html.escape(item)}</li>' for item in contract["not_for"])
         interface = self.application_interface(authenticated, page, result)
+        release_activation = getattr(self.product, "release_activation", None)
+        if release_activation is not None:
+            installed = release_activation.current(authenticated.actor, application_id)
+            if installed and installed["status"] == "ACTIVE" and authenticated.actor.membership_kind == "owner":
+                from .release_web import form
+                interface += form(authenticated, "/releases/remove/"+application_id, "Remove from this workspace")
         workspace_name = "Personal" if authenticated.actor.workspace_kind == "personal" else authenticated.actor.team_name
         body = (
             str(render_page_header(
@@ -2226,6 +2255,17 @@ class ProductServer(ThreadingHTTPServer):
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--candidate-releases", action="store_true")
+    parser.add_argument("--release-bridge-socket", type=Path)
+    parser.add_argument("--release-bridge-uid", type=int)
+    parser.add_argument("--release-control-root", type=Path)
+    parser.add_argument("--release-preview-root", type=Path)
+    parser.add_argument("--release-preview-users", help="Distinct comma-separated preview execution users")
+    parser.add_argument("--developer-bootstrap-root", type=Path, help="Host one verified bootstrap release (default off)")
+    parser.add_argument("--developer-link", action="store_true", help="Enable isolated local developer handoff (default off)")
+    parser.add_argument("--developer-link-database", type=Path)
+    parser.add_argument("--developer-link-site-id")
+    parser.add_argument("--developer-link-origin", help="Exact canonical HTTPS origin for local pairing")
     parser.add_argument("--bind", default="127.0.0.1")
     parser.add_argument("--port", default=18820, type=int)
     parser.add_argument("--runtime-root", required=True, type=Path)

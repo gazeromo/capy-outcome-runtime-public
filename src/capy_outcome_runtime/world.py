@@ -75,9 +75,14 @@ class WorldBuilder:
         inventory = self.connection_inventory
         if isinstance(authority, ActorContext) and self.team_software is not None:
             shared = {item.capability_id: item for item in self.team_software(authority)}
-            capabilities = [item for item in capabilities if item["id"] in shared]
+            # Personal installations are authorized by their canonical scope binding.
+            # Team installations additionally require a current share projection.
+            if authority.workspace_kind != "personal":
+                capabilities = [item for item in capabilities if item["id"] in shared]
             for item in capabilities:
-                projection = shared[item["id"]]
+                projection = shared.get(item["id"])
+                if projection is None:
+                    continue
                 if item["version_digest"] != projection.version_digest:
                     raise ValueError("team software projection version mismatch")
                 item["source"] = projection.source

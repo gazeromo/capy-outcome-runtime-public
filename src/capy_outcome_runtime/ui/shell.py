@@ -91,7 +91,7 @@ def render_shell(
     account_item: SafeHtml,
     stylesheet_extension: StylesheetExtension | None = None,
     main_wide: bool = False,
-    enhancement: Literal["none", "chat", "form-protection"] = "none",
+    enhancement: Literal["none", "chat", "form-protection", "developer-status"] = "none",
 ) -> SafeHtml:
     if not all(isinstance(value, SafeHtml) for value in (body, workspace_switcher, mobile_workspace_switcher, new_item_action, account_item)):
         raise TypeError("shell fragments must come from trusted renderers")
