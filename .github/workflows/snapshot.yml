@@ -35,3 +35,29 @@ jobs:
       - name: Install built wheel
         run: python -c "import pathlib,subprocess,sys; subprocess.run([sys.executable,'-m','pip','install','--no-deps',str(next(pathlib.Path('dist').glob('*.whl')))],check=True)"
       - run: python tools/run_installed.py
+  bounded-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python tools/verify_snapshot.py
+      - run: python tools/check_publication.py
+      - run: python -m pip wheel --no-deps --wheel-dir dist .
+      - name: Source and installed exact pure behavior
+        run: |
+          $wheel = (Get-ChildItem dist/*.whl).FullName
+          python tools/qualify_bounded_windows.py source --wheel $wheel --require-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip install --no-deps $wheel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -I tools/qualify_bounded_windows.py installed --wheel $wheel --require-windows
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bounded-windows-proof
+          path: .qualification/*.json
+          include-hidden-files: true
+          if-no-files-found: error

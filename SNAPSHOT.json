@@ -17,18 +17,23 @@
     },
     {
       "path": ".github/workflows/snapshot.yml",
-      "sha256": "1d99bfcbf586c6730face317260d4ba5797d61c09c796fd2eda31f44e6412769",
-      "size": 1398
+      "sha256": "e7dcdaeb2821f98ed13a386f1dd229a0037b3dde3aedc426fce0d5acb419db36",
+      "size": 2458
     },
     {
       "path": ".gitignore",
-      "sha256": "305535664b5d5d1ab9a8ff96aaf5402ce4e977cc78e929c0129eea9865130be9",
-      "size": 97
+      "sha256": "e89d3a6f1ba93e9ef259e86bf38b59906add50ecf8fd8c0e42a75b38cfea94fd",
+      "size": 113
     },
     {
       "path": "AGENTS.md",
       "sha256": "46625ae57d0ad2009f3e5f3440c9607d39401578440b96998de0a1147861409e",
       "size": 519
+    },
+    {
+      "path": "BOUNDED-WINDOWS.json",
+      "sha256": "3c9c848bdb50e93f7b1784df335679dcfec84d56f803353a875dd5f3a157c59a",
+      "size": 1808
     },
     {
       "path": "LICENSE",
@@ -604,6 +609,11 @@
       "path": "tools/check_publication.py",
       "sha256": "6c50ceb491e204362599700d4f697337441e729e7489cd8dd2fd29efd5ae946d",
       "size": 1418
+    },
+    {
+      "path": "tools/qualify_bounded_windows.py",
+      "sha256": "b111c79fcfade8462dfb97ce7bd23f9870ad8d06ab8eb7df17bca3267abb076e",
+      "size": 4997
     },
     {
       "path": "tools/run_installed.py",

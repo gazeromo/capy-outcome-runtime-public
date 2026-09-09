@@ -1,0 +1,30 @@
+{
+  "schema": "capy.bounded-windows-equivalence/v1",
+  "original_commit": "e2bd58f1ae9561b2c569e9e2616f1202342f5d36",
+  "original_wheel_sha256": "0b497c08185e62bc96363875b4ec33c203715e643e390a04a6e7e7021fff88bf",
+  "original_wheel_executed_on_windows": false,
+  "scope": "Exact nine-test Windows pure source/installed behavior through identical imported runtime module closure; original packaging qualified separately on macOS/Linux.",
+  "module_sha256": {
+    "__init__.py": "b82ac8c06e96b52e71ea9861a8b86efc79adef76c1dbfdff050dc738b35e310c",
+    "model.py": "62adec7071442c9fadd23f15383c8ff77d14a1f1d13258df92587fed62f02b3e",
+    "context_search.py": "797f8f8b6e22c86293b2d109ec5e7b7a7f818d30528b5713d63d3a9b049ee34d",
+    "consumer_mcp.py": "40073b9f3f3bf2f3d297137542aebe25a3b776000869594bed57db84e47d8058"
+  },
+  "test_ast_sha256": {
+    "tests/test_bounded_context_pure.py": {
+      "catalog": "086d8a193bf30ca995459b790ab0b9de0f73c792ddb40187f4d01eb4f58e8e3c",
+      "ENVELOPE": "d29875f43f032e89cf5b73b671c3f4cbed36bcb103844a013ad98d05b5678532",
+      "SearchTests": "dfe87d9fc34218c7ca1ae4c3f4af2d94e3a2915f50b0306620f35a52c623189e"
+    },
+    "tests/test_artifact_delivery_posix.py": {
+      "ArtifactDeliveryTests": "839fcb9c7020608c1b9e7050fdaf31f65754fc6cd86385e526e6e978b4c12c2e"
+    },
+    "tests/test_artifact_delivery_pure.py": {
+      "PortableArtifactChecks": "af4523872e2f2d7c5337194698aed798b6a17c1b6f643b21abf22c81c9c41a61"
+    }
+  },
+  "baseline_consumer_sha256": "b978a9e0dd8b55272edf2d94091be0387f3bcb2edebf1a02b3eb072d79ae340a",
+  "expected_test_count": 9,
+  "metadata_and_sanitized_module_behavior_in_scope": false,
+  "ast_identity": "Sorted canonical AST fields, omitting only empty type_params for Python3.11 compatibility; bytes encoded as bytes_hex. No location attributes."
+}
