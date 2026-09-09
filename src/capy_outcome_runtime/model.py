@@ -17,7 +17,7 @@ ALLOWED_SIDE_EFFECTS = {
     "scope_state_mutation", "external_effect",
 }
 ALLOWED_VISIBILITY = {"private", "shared", "link"}
-SUPPORTED_CONNECTION_CONTRACTS = {"fedex.rates/v1": {"quote"}}
+SUPPORTED_CONNECTION_CONTRACTS = {"fedex.rates/v1": {"quote"}, "fedex.rates/v2": {"quote"}}
 
 
 class RuntimeFailure(RuntimeError):

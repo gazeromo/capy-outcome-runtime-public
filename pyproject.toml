@@ -1,15 +1,22 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "capy-outcome-runtime"
-version = "0.1.0"
+version = "0.1.2"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 description = "Provider-neutral shared execution core for Capy Outcome Runtime V0"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+account-service = ["cryptography>=41,<47"]
+
 [project.scripts]
+capy-core = "capy_outcome_runtime.core_http:main"
+capy-consumer = "capy_outcome_runtime.consumer_mcp:main"
 capy-builder = "capy_outcome_runtime.builder_cli:main"
 capy-productization-qualify = "capy_outcome_runtime.productization:main"
 capy-encar-watcher-dispatch = "capy_outcome_runtime.encar_watcher_dispatcher:main"

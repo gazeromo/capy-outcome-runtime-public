@@ -180,8 +180,6 @@ def _read(payload: bytes) -> Candidate:
     # Must be checked before semantic trial, including during read.
     if descriptor.get("state_required") is True:
         raise _unsupported()
-    if descriptor.get("connections"):
-        raise _unsupported()
     if descriptor.get("side_effect") not in ("read_only", "artifact_generation"):
         raise _unsupported()
     if manifest["application"]["contract"] != EXECUTION_CONTRACT:
@@ -275,10 +273,6 @@ def _map_descriptor_error(raw: bytes, msg: str) -> AcceptorError:
         # If required keys present, check unsupported signals.
         if isinstance(value, dict):
             if value.get("state_required") is True:
-                return _unsupported()
-            if isinstance(value.get("connections"), list) and len(value["connections"]) > 0:
-                # Only if connections list itself is well-formed? Treat as unsupported
-                # when it is a list (self-consistent declaration).
                 return _unsupported()
             se = value.get("side_effect")
             if se in ("scope_state_mutation", "external_effect"):
@@ -707,6 +701,15 @@ def _validate_toolchain(bundle_bytes: bytes, manifest) -> bytes:
     # in _check_member_binding; self-consistent but unapproved is untrusted.
     try:
         _mt = manifest["toolchain"]
+        from .constants import trusted_toolchain
+        trusted = trusted_toolchain(_mt["release_binding_commit"])
+        if trusted is None:
+            raise _untrusted()
+        TRUSTED_RELEASE_BINDING_COMMIT = _mt["release_binding_commit"]
+        TRUSTED_WHEEL_SHA256 = trusted["wheel_sha256"]
+        TRUSTED_BUNDLE_SHA256 = trusted["bundle_sha256"]
+        TRUSTED_IMPLEMENTATION_COMMIT = trusted["implementation_commit"]
+        TRUSTED_WHEEL_FILENAME = trusted["wheel_filename"]
         if (
             _mt["release_binding_commit"] != TRUSTED_RELEASE_BINDING_COMMIT
             or _mt["wheel_sha256"] != TRUSTED_WHEEL_SHA256

@@ -115,7 +115,9 @@ def project_portable(execution: dict, interaction: dict, import_id: str) -> dict
         "authority": {"required_role": "current active workspace member with the exact software binding",
                       "policy": "runtime scope plus current membership and exact software binding"},
         "effects": {"effect_class": execution["side_effect"],
-                    "state_effect": "read_only", "source_behavior": "no declared connections"},
+                    "state_effect": "read_only", "source_behavior": (
+                        "publisher-managed read-only connections" if execution["connections"]
+                        else "no declared connections")},
         "examples": copy.deepcopy(op["examples"]),
         "common_misunderstandings": copy.deepcopy(op["common_misunderstandings"]),
         "result": {"presentation": result["presentation"],

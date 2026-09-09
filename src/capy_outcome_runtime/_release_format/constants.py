@@ -126,3 +126,31 @@ WINDOWS_RESERVED = frozenset({
     "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
     "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
 })
+
+# Finite exact release identities. Historical constants remain immutable.
+TRUSTED_TOOLCHAINS = {
+    "b8d1fb45a4b406d9359575630492142f94200f11": {
+        "wheel_sha256": "65033f455a0ecd0aafec56b204c814d19b67d4d0b2794151c936a1cc4eca1e95",
+        "bundle_sha256": "0a79a0d0a6bed13b52397d3795074cff85ad17237e23e03e24a3c8a9c5b09786",
+        "implementation_commit": "ceddb0b12f2bd4f46ccce055b7672b4088e00a57",
+        "wheel_filename": "capy_script_devkit-0.2.0-py3-none-any.whl",
+    },
+    TRUSTED_RELEASE_BINDING_COMMIT: {
+        "wheel_sha256": TRUSTED_WHEEL_SHA256,
+        "bundle_sha256": TRUSTED_BUNDLE_SHA256,
+        "implementation_commit": TRUSTED_IMPLEMENTATION_COMMIT,
+        "wheel_filename": TRUSTED_WHEEL_FILENAME,
+    },
+}
+
+def trusted_toolchain(binding):
+    return TRUSTED_TOOLCHAINS.get(binding) if isinstance(binding, str) else None
+
+# Original acceptance receipts retain the original ordered non-claims.
+CONNECTED_NON_GOALS = [
+    "live_provider_access_or_credentials" if item == "connection_bearing_application_acceptance" else item
+    for item in NON_GOALS
+]
+
+def non_goals_for_release(release):
+    return CONNECTED_NON_GOALS if release.get("version") == "0.2.0" else NON_GOALS

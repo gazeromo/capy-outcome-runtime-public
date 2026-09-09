@@ -6,9 +6,12 @@ from ._release_format import codec
 from ._release_format.candidate import read_candidate
 from ._release_format.errors import AcceptorError
 from ._release_format.projection import application_projection
-from ._release_format.constants import NON_GOALS, OUTER_MAX_BYTES
+from ._release_format.constants import NON_GOALS, OUTER_MAX_BYTES, non_goals_for_release
 from .model import RuntimeFailure
 
+
+TRUSTED_ACCEPTORS = [{'contract':'capy.independent-application-acceptance/v0','implementation_commit':'05420906f3966a4c73a2261b1ce48d0a48a4d60c','implementation_tree':'dc383e96373ed109b5a8560ee8df6d76be8604b5','version':'0.1.0'}, {'contract': 'capy.independent-application-acceptance/v0', 'implementation_commit': 'cd138579db75752dba7c2217f5e5001dabb801b7', 'implementation_tree': 'e5e495d48ab9a3105386c00dc4c8d010d95e6c4d', 'version': '0.2.0'}]
+ACCEPTOR_WHEELS = {"bc1efe5cf11bc69a573300cf00a659dd71213055f9647eebc7e6ab4860b1b28d": TRUSTED_ACCEPTORS[0], '157074f4d1962230940f441b6f108bd8e858f50f1dcf7549562be860bbd9e054': TRUSTED_ACCEPTORS[1]}
 
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -41,13 +44,13 @@ def validate_release(candidate_bytes: bytes, acceptance_bytes: bytes, approvals:
             fail()
         for key in ('candidate_bundle_sha256','profile_bundle_sha256'):
             if not isinstance(identity[key],str) or len(identity[key]) != 64 or any(c not in '0123456789abcdef' for c in identity[key]): fail()
-        if identity['acceptor'] != {'contract':'capy.independent-application-acceptance/v0','implementation_commit':'05420906f3966a4c73a2261b1ce48d0a48a4d60c','implementation_tree':'dc383e96373ed109b5a8560ee8df6d76be8604b5','version':'0.1.0'}: fail('RELEASE_ACCEPTOR_UNTRUSTED')
+        if identity['acceptor'] not in TRUSTED_ACCEPTORS: fail('RELEASE_ACCEPTOR_UNTRUSTED')
         ih = digest(codec.canonical_bytes(identity))
         if doc['identity_sha256'] != ih or doc['acceptance_id'] != 'acc_'+ih[:32]: fail()
         m = candidate.manifest
         if identity['candidate_bundle_sha256'] != candidate.bundle_sha256 or identity['candidate_release_candidate_id'] != m['release_candidate_id'] or identity['application_id'] != m['application']['id']: fail()
         if doc['source'] != m['source'] or doc['application'] != application_projection(candidate) or doc['toolchain'] != m['toolchain']: fail()
-        if doc['cleanup'] != {'status':'CONFIRMED'} or doc['secret_scan'] != {'status':'PASSED','findings':[]} or doc['non_claims'] != list(NON_GOALS): fail()
+        if doc['cleanup'] != {'status':'CONFIRMED'} or doc['secret_scan'] != {'status':'PASSED','findings':[]} or doc['non_claims'] != list(non_goals_for_release(identity['acceptor'])): fail()
         cases=doc['cases']
         if not isinstance(cases,list) or not cases: fail()
         case_ids=set()

@@ -8,7 +8,6 @@ import hashlib
 import html
 import json
 import os
-import pwd
 import re
 import secrets
 import traceback
@@ -26,6 +25,9 @@ from typing import Any
 
 from .access import AccessStore, ActorContext, AuthenticatedClient
 from .chat import ChatStore
+from .developer_link import configured_link
+from .developer_link_web import route as developer_link_route, applications_section
+from .release_web import route as release_route
 from .controller import ProductController
 from .encar_watcher_runtime import EncarWatcherLunaEvaluator, EncarWatcherRuntime, QueuedWatcherEvaluator
 from .application_operations import ApplicationOperationRegistry
@@ -99,6 +101,7 @@ def read_private(path: Path) -> str:
 
 
 def linux_identity(name: str) -> ExecutionIdentity:
+    import pwd
     account = pwd.getpwnam(name)
     return ExecutionIdentity(account.pw_name, account.pw_name, account.pw_uid, account.pw_gid)
 
@@ -208,19 +211,38 @@ def activate_accepted_fedex(
     return descriptor, version, publication
 
 
+from .serving import acquire_serving_lease
+
+
 class Product:
     def __init__(
         self, args: argparse.Namespace, *, generic_build_coordinator: Any | None = None
     ):
+        self._serving_lease = acquire_serving_lease(args.runtime_root)
+        self._serving_attached = False
+        try:
+            self._initialize(args, generic_build_coordinator=generic_build_coordinator)
+        except BaseException:
+            self.close()
+            raise
+
+    def _initialize(self, args, *, generic_build_coordinator=None):
+        from .human_ui import listener_address
+        human_ui_address = listener_address(args)
         self.scope = "owner"
         self.runtime_store = RuntimeStore(args.runtime_root)
         self.access_store = AccessStore(self.runtime_store)
+        self.developer_link = configured_link(args, self.access_store)
+        from .developer_bootstrap import configured_bootstrap
+        self.developer_bootstrap = configured_bootstrap(args, self.developer_link)
         self.chat_store = ChatStore(args.chat_database)
         dispatch_enabled = bool(getattr(args, "semantic_dispatch", False))
         self.semantic_dispatch_store = (
             SemanticDispatchStore(args.chat_database) if dispatch_enabled else None
         )
-        self.team_software = TeamSoftwareStore(self.runtime_store, self.access_store)
+        self.connection_control = ConnectionControl(self.runtime_store)
+        self.team_software = TeamSoftwareStore(self.runtime_store, self.access_store,
+                                               connection_control=self.connection_control)
         self.access_store.set_membership_reconciler(self.team_software.reconcile_team)
         identities = {
             "owner": linux_identity(args.owner_user),
@@ -232,7 +254,6 @@ class Product:
         descriptor, version = self.runtime_store.publish(args.csv_capability, acceptance)
         for scope in identities:
             self.runtime_store.bind(scope, descriptor.id, version, {})
-        self.connection_control = ConnectionControl(self.runtime_store)
         fedex_descriptor, fedex_version, _fedex_publication = activate_accepted_fedex(
             self.runtime_store,
             self.connection_control,
@@ -411,13 +432,37 @@ class Product:
         for personal_actor in self.access_store.personal_workspace_actors():
             provision_personal_workspace(personal_actor)
         self.team_startup_reconciliation = self.team_software.reconcile_all()
-        self.origin = f"http://{args.bind}:{args.port}"
+        self.origin = self.developer_link.origin if self.developer_link else f"http://{args.bind}:{args.port}"
+        self.human_requests = None
+        self.human_ui = None
+        self.human_ui_server = None
+        if getattr(args, "human_requests", False):
+            from .human_requests import HumanRequests
+            self.human_requests = HumanRequests(self.runtime_store, self.access_store, runtime, self.controller.application_contract)
+            if getattr(args, "human_ui_manifest", None):
+                from .human_ui import UIAttachment
+                self.human_ui = UIAttachment(args.human_ui_manifest, self.origin, args.human_ui_origin)
+                self.human_ui_server = self.human_ui.server(human_ui_address)
+                threading.Thread(target=self.human_ui_server.serve_forever, daemon=True).start()
+            self.human_requests.start_background(self.human_requests.recover)
+        from .release_setup import configure
+        configure(self, args)
+        from .account_setup_config import configure as configure_accounts
+        configure_accounts(self, args)
 
     def close(self) -> None:
-        if self.semantic_dispatch_stop is not None:
+        if getattr(self, "human_ui_server", None) is not None:
+            self.human_ui_server.shutdown()
+            self.human_ui_server.server_close()
+        if getattr(self, "release_workflow", None) is not None:
+            self.release_workflow.stop()
+        if getattr(self, "semantic_dispatch_stop", None) is not None:
             self.semantic_dispatch_stop.set()
-        if self.semantic_dispatch_thread is not None:
-            self.semantic_dispatch_thread.join(timeout=5)
+        if getattr(self, "semantic_dispatch_thread", None) is not None:
+            self.semantic_dispatch_thread.join()
+        if getattr(self, "human_requests", None) is not None:
+            self.human_requests.drain_background()
+        self._serving_lease.close()
 
 
 STYLE = WORKBENCH_CSS + COMPATIBILITY_CSS
@@ -541,7 +586,11 @@ class Handler(BaseHTTPRequestHandler):
         headers: dict[str, str] | None = None,
         *,
         script_sha256: str | None = STANDARD_SCRIPT_SHA256,
+        referrer_policy: str = "no-referrer",
+        frame_origin: str | None = None,
     ) -> None:
+        if referrer_policy not in {"no-referrer", "same-origin"}:
+            raise ValueError("Unsupported referrer policy")
         payload = value.encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -552,12 +601,13 @@ class Handler(BaseHTTPRequestHandler):
             f"; script-src 'sha256-{script_sha256}'; connect-src 'self'"
             if script_sha256 else ""
         )
+        frame_policy = f"; frame-src {frame_origin}" if frame_origin else ""
         self.send_header(
             "Content-Security-Policy",
             "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; "
-            f"base-uri 'none'; frame-ancestors 'none'{script_policy}",
+            f"base-uri 'none'; frame-ancestors 'none'{script_policy}{frame_policy}",
         )
-        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Referrer-Policy", referrer_policy)
         for name, item in (headers or {}).items():
             self.send_header(name, item)
         self.end_headers()
@@ -726,8 +776,23 @@ class Handler(BaseHTTPRequestHandler):
         if not secrets.compare_digest(csrf, authenticated.csrf_token):
             raise RuntimeFailure("HTTP_CSRF_DENIED")
 
+    def do_OPTIONS(self) -> None:
+        from .human_request_web import route as human_route
+        if not human_route(self, "OPTIONS", urllib.parse.urlsplit(self.path)):
+            self.send_error(405)
+
     def do_GET(self) -> None:
         parsed = urllib.parse.urlsplit(self.path)
+        from .account_access_web import route as account_access_route
+        if account_access_route(self, "GET", parsed):
+            return
+        from .human_request_web import route as human_route
+        if human_route(self, "GET", parsed):
+            return
+        if release_route(self, "GET", parsed):
+            return
+        if developer_link_route(self, "GET", parsed):
+            return
         if parsed.path == "/health":
             self.send_html("ok")
             return
@@ -766,6 +831,14 @@ class Handler(BaseHTTPRequestHandler):
                 if authenticated is not None:
                     snapshot = self.product.controller.snapshot(authenticated.actor, conversation)
                     self.send_html(self.world_page(authenticated, conversation, snapshot.value, snapshot.digest))
+            elif parsed.path == "/recent-work":
+                authenticated = self.require_actor()
+                if authenticated is not None:
+                    from .work_context import recent_work
+                    items = recent_work(self.product, authenticated.actor)
+                    rows = ''.join('<li><a href="'+html.escape(item['href'],quote=True)+'">'+html.escape(item['title'])+'</a> · '+html.escape(item['state'])+' · '+html.escape(item['workspace'])+'</li>' for item in items)
+                    body = compatibility_body('<h1>Recent work</h1><p>Saved work in this workspace. Opening it does not run it again.</p><ul>'+rows+'</ul>' if rows else '<h1>Recent work</h1><p>No saved work in this workspace yet.</p>')
+                    self.send_html(self.product_shell(authenticated,title="Recent work",active="recent-work",body=body))
             elif parsed.path == "/applications":
                 authenticated = self.require_actor()
                 if authenticated is not None:
@@ -811,6 +884,13 @@ class Handler(BaseHTTPRequestHandler):
                 activity_id = parts[4]
                 authenticated = self.require_actor()
                 if authenticated is not None:
+                    requested = query.get("workspace", [None])[0]
+                    if requested and requested != authenticated.actor.membership_id:
+                        target = self.product.access_store.resolve_actor(authenticated.actor.client_id, requested)
+                        if target.principal_id != authenticated.actor.principal_id:
+                            raise RuntimeFailure("ACCESS_AUTHORITY_DENIED")
+                        self.send_html(self.workspace_handoff_page(authenticated, target, parsed.path + "?" + parsed.query, application_id=application_id))
+                        return
                     result = self.product.application_interfaces.activity(
                         authenticated.actor, application_id, activity_id
                     )
@@ -838,6 +918,8 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_html(
                         self.application_page(authenticated, application_id),
                         script_sha256=APPLICATION_SCRIPT_SHA256,
+                        referrer_policy=("same-origin" if getattr(self.product, "release_activation", None)
+                                         is not None else "no-referrer"),
                     )
             elif parsed.path.startswith("/application-artifact/"):
                 parts = parsed.path.split("/")
@@ -862,6 +944,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urllib.parse.urlsplit(self.path)
+        from .account_access_web import route as account_access_route
+        if account_access_route(self, "POST", parsed):
+            return
+        from .human_request_web import route as human_route
+        if human_route(self, "POST", parsed):
+            return
+        if release_route(self, "POST", parsed):
+            return
+        if developer_link_route(self, "POST", parsed):
+            return
         application_context: tuple[AuthenticatedClient, str] | None = None
         try:
             if parsed.path.startswith("/claim/"):
@@ -1057,6 +1149,8 @@ class Handler(BaseHTTPRequestHandler):
                 rows.append(f'<div class=card>{html.escape(item["display_name"])} · {html.escape(item["kind"])} · {html.escape(item["status"])}{action}</div>')
             members = f'<h2>Team members</h2>{"".join(rows)}<form method=post action=/access/invitations><input type=hidden name=csrf value="{csrf}"><button>Invite teammate</button></form>'
         team_link = " · <a href=/team>Team software</a>" if actor.workspace_kind == "team" else ""
+        if getattr(self.product, "account_setup", None) is not None:
+            team_link += " · <a href=/account-access>Account connection requests</a>"
         return f'''<!doctype html><meta charset=utf-8><title>Capy access</title><style>{STYLE}</style><div class=login style="max-width:760px;margin-top:5vh"><a href=/>← Capy</a>{team_link}<h1>Access</h1><p>{html.escape(actor.principal_display_name)} · {html.escape(actor.team_name)}</p><h2>Workspaces</h2>{"".join(memberships)}<h2>Authorized clients</h2>{"".join(clients)}<form method=post action=/access/device-links><input type=hidden name=csrf value="{csrf}"><button>Link another device</button></form>{members}</div>'''
 
     def team_page(self, authenticated: AuthenticatedClient) -> str:
@@ -1207,11 +1301,16 @@ class Handler(BaseHTTPRequestHandler):
         navigation_items = (
             UINavItem("chat", "Chat", "/", current=active == "chat"),
             UINavItem(
-                "applications", "Applications",
+                "applications", "Apps",
                 f'/applications?workspace={urllib.parse.quote(actor.membership_id, safe="")}',
                 current=active == "applications",
             ),
         )
+        if getattr(self.product, "human_requests", None) is not None:
+            count = sum(x["status"] == "waiting" for x in self.product.human_requests.list(actor))
+            navigation_items += (UINavItem("needs-you", "Needs you" + (f" {count}" if count else ""), "/needs-you", current=active == "needs-you"),)
+        if not any(item.item_id == "needs-you" for item in navigation_items):
+            navigation_items += (UINavItem("needs-you", "Needs you", "/needs-you", current=active == "needs-you"),)
         application_items = tuple(
             UINavItem(
                 f'app-{index}',
@@ -1293,6 +1392,9 @@ class Handler(BaseHTTPRequestHandler):
             "Personal" if authenticated.actor.workspace_kind == "personal"
             else authenticated.actor.team_name
         )
+        if metadata.get("status") in {"failed", "running"}:
+            label = "Could not finish" if metadata["status"] == "failed" else "Status unconfirmed"
+            return compatibility_body('<section class="interface-section"><h2>'+label+'</h2><p>This attempt has no confirmed result. Opening this page does not retry it.</p></section>')
         application_id = metadata.get("application_id")
         contract = (
             self.current_application_contract(authenticated, application_id)
@@ -1304,6 +1406,7 @@ class Handler(BaseHTTPRequestHandler):
             if (operation is not None
                 and metadata.get("application_version") == contract["application_version"]
                 and metadata.get("interaction_contract_digest") == contract["digest"]):
+                from .work_context import outcome_label
                 facts = metadata.get("result") or {}
                 labels = operation["result"].get("fact_labels", {})
                 rows = "".join(
@@ -1316,7 +1419,7 @@ class Handler(BaseHTTPRequestHandler):
                     for item in artifacts
                 )
                 return compatibility_body(
-                    '<section class="interface-section"><h2>Completed</h2>'
+                    '<section class="interface-section"><h2>'+html.escape(outcome_label(facts,artifacts=artifacts))+'</h2>'
                     f'<p>{html.escape(contract["title"])}</p><dl>{rows}</dl>{links}</section>'
                 )
         if contract is None or not presentation_binding_is_current(metadata, contract):
@@ -1619,41 +1722,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def applications_page(self, authenticated: AuthenticatedClient) -> str:
         applications = self.product.controller.application_contracts(authenticated.actor)
-        entities = tuple(
-            UIEntity(
-                reference=f'application-{index}',
-                title=self.application_title(item["application_id"], item["title"]),
-                subtitle=item["purpose"],
-                primary_facts=(UIFact(
-                    "Available operations",
-                    str(len(item["operations"])),
-                    importance="primary",
-                    sort_value=len(item["operations"]),
-                ),),
-                primary_action=UIAction(
-                    f'open-application-{index}', "Open application",
-                    href=self.application_href(item["application_id"], authenticated.actor.membership_id),
-                    hierarchy="primary",
-                ),
-            )
-            for index, item in enumerate(applications)
-        )
-        collection = UICollection(
-            title="Installed applications",
-            count=len(entities),
-            entities=entities,
-            empty_state=UINotice(
-                "empty", "No applications installed",
-                "No contract-aware applications are installed and authorized for this workspace.",
-                what_did_not_happen="No source check or external action ran.",
-            ),
-        )
-        body = render_stack(
-            render_page_header(
-                "Applications", "Installed applications",
-                "Open the software available in this workspace. Opening an application uses stored state and does not run a source check.",
-            ), render_collection(collection)
-        )
+        from .ui_compatibility import compatibility_body
+        cards = []
+        for item in applications:
+            title = self.application_title(item['application_id'], item['title'])
+            href = self.application_href(item['application_id'], authenticated.actor.membership_id)
+            cards.append('<section class="app-choice"><h2>'+html.escape(title)+'</h2><p>'+
+                html.escape(item['purpose'])+'</p><a class="ui-action ui-action--primary" href="'+
+                html.escape(href,quote=True)+'">Open '+html.escape(title)+'</a></section>')
+        body = compatibility_body('<h1>Apps</h1><p>Choose an app for your task. Find earlier results in '
+            '<a href="/recent-work">Recent work</a>.</p>'+(''.join(cards) or
+            '<p>No apps are available in this workspace yet.</p>')+str(applications_section(self, authenticated)))
         return self.product_shell(
             authenticated, title="Applications", active="applications", body=body,
             application=True,
@@ -1723,6 +1802,12 @@ class Handler(BaseHTTPRequestHandler):
         )
         not_for = "".join(f'<li>{html.escape(item)}</li>' for item in contract["not_for"])
         interface = self.application_interface(authenticated, page, result)
+        release_activation = getattr(self.product, "release_activation", None)
+        if release_activation is not None:
+            installed = release_activation.current(authenticated.actor, application_id)
+            if installed and installed["status"] == "ACTIVE" and authenticated.actor.membership_kind == "owner":
+                from .release_web import form
+                interface += form(authenticated, "/releases/remove/"+application_id, "Remove from this workspace")
         workspace_name = "Personal" if authenticated.actor.workspace_kind == "personal" else authenticated.actor.team_name
         body = (
             str(render_page_header(
@@ -1737,11 +1822,9 @@ class Handler(BaseHTTPRequestHandler):
             f'<h2>Unsupported boundaries and nearest alternatives</h2><ul>{boundaries}</ul>'
             '</details>'
         )
-        return self.product_shell(
-            authenticated, title=display_title, active=application_id,
-            body=compatibility_body(body),
-            application=True, enhancement="form-protection",
-        )
+        from .ui.shell import render_application_document
+        return str(render_application_document(display_title,
+            '<header class="app-bar"><a href="/applications?workspace='+html.escape(authenticated.actor.membership_id,quote=True)+'">← Back to Apps</a><span>'+html.escape(display_title)+' · '+html.escape(workspace_name)+'</span></header><main class="app-result">'+body+'</main>', enhancement="form-protection"))
 
     def application_activity_page(
         self,
@@ -1772,13 +1855,13 @@ class Handler(BaseHTTPRequestHandler):
             for item in result.get("artifacts", [])
         )
         body = render_stack(
-            render_page_header("Application result", "Completed application activity"),
+            render_page_header("Saved result", contract["title"]),
             self.result_card(authenticated, result_metadata, artifacts=artifacts),
         )
-        return self.product_shell(
-            authenticated, title="Application result", active=application_id, body=body,
-            application=True,
-        )
+        from .ui.shell import render_application_document
+        workspace = "Personal" if authenticated.actor.workspace_kind == "personal" else authenticated.actor.team_name
+        return str(render_application_document(contract["title"],
+            '<header class="app-bar"><a href="/recent-work">← Back to recent work</a><span>'+html.escape(contract["title"])+ ' · '+html.escape(workspace)+'</span><a href="'+html.escape(self.application_href(application_id,authenticated.actor.membership_id),quote=True)+'">Open app</a></header><main class="app-result">'+str(body)+'</main>', enhancement="none"))
 
     def watcher_listings_page(
         self, authenticated: AuthenticatedClient, page: dict[str, Any]
@@ -2036,15 +2119,18 @@ class Handler(BaseHTTPRequestHandler):
         operation = contract["operations"][0]
         if contract.get("portable_import"):
             from .portable_interfaces import render_portable_fields
-            return (
-                f'{result_html}<section class=interface-section>'
+            retained=page.get('retained_inputs',{})
+            human_fields=[dict(field,safe_default=retained.get('input.'+field['field_id'],field.get('safe_default'))) if field['input_kind']!='file' else field for field in operation['human_fields']]
+            form_html = (
+                '<section class=interface-section>'
                 f'<h2>{html.escape(operation["title"])}</h2>'
                 f'<p>{html.escape(operation["description"])}</p>'
                 f'<form data-protect-draft method=post enctype=multipart/form-data action="{self.operation_path(contract, operation["operation_id"])}">'
                 f'{self.interface_hidden(authenticated, contract)}'
-                f'{render_portable_fields(operation["human_fields"])}'
+                f'{render_portable_fields(human_fields)}'
                 '<button>Run application</button></form></section>'
             )
+            return str(result_html) + ('<details><summary>Start another request</summary>'+form_html+'</details>' if result and result.get('result',{}).get('status')!='needs_input' else form_html)
         resource = operation["resources"][0]
         columns = ",".join(resource["accepted_columns_in_order"])
         external_boundary = next(
@@ -2220,12 +2306,47 @@ class Handler(BaseHTTPRequestHandler):
 
 class ProductServer(ThreadingHTTPServer):
     def __init__(self, address, product: Product):
-        super().__init__(address, Handler)
+        self._human_authority_lease = None
+        if getattr(product, "_serving_lease", None) is not None:
+            if product._serving_attached:
+                raise RuntimeFailure("HUMAN_AUTHORITY_SERVER_ALREADY_RUNNING")
+            product._serving_attached = True
+        else:
+            self._human_authority_lease = acquire_serving_lease(product.runtime_store.root)
+        try:
+            super().__init__(address, Handler)
+        except BaseException:
+            if self._human_authority_lease is not None:
+                self._human_authority_lease.close()
+            raise
         self.product = product
+
+    def server_close(self):
+        super().server_close()
+        if getattr(self.product, "human_requests", None) is not None:
+            self.product.human_requests.drain_background()
+        if self._human_authority_lease is not None:
+            self._human_authority_lease.close()
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--human-requests", action="store_true", help="Enable additive durable requests (default off)")
+    parser.add_argument("--human-ui-manifest", type=Path)
+    parser.add_argument("--human-ui-origin", help="Separate public origin for reviewed static app assets")
+    parser.add_argument("--human-ui-port", type=int, help="Private loopback HTTP listener port; required behind HTTPS proxy")
+    parser.add_argument("--candidate-releases", action="store_true")
+    parser.add_argument("--account-setup-config", type=Path)
+    parser.add_argument("--release-bridge-socket", type=Path)
+    parser.add_argument("--release-bridge-uid", type=int)
+    parser.add_argument("--release-control-root", type=Path)
+    parser.add_argument("--release-preview-root", type=Path)
+    parser.add_argument("--release-preview-users", help="Distinct comma-separated preview execution users")
+    parser.add_argument("--developer-bootstrap-root", type=Path, help="Host one verified bootstrap release (default off)")
+    parser.add_argument("--developer-link", action="store_true", help="Enable isolated local developer handoff (default off)")
+    parser.add_argument("--developer-link-database", type=Path)
+    parser.add_argument("--developer-link-site-id")
+    parser.add_argument("--developer-link-origin", help="Exact canonical HTTPS origin for local pairing")
     parser.add_argument("--bind", default="127.0.0.1")
     parser.add_argument("--port", default=18820, type=int)
     parser.add_argument("--runtime-root", required=True, type=Path)
@@ -2236,8 +2357,8 @@ def main() -> int:
     parser.add_argument("--fedex-acceptance-receipt", required=True, type=Path)
     parser.add_argument("--fedex-devkit-wheel", required=True, type=Path)
     parser.add_argument("--fedex-expected-identity", required=True, type=Path)
-    parser.add_argument("--fedex-connection-id", default="cosmain-fedex-rates")
-    parser.add_argument("--fedex-grant-id", default="owner-cosmain-fedex-quote")
+    parser.add_argument("--fedex-connection-id", default="example-fedex-rates")
+    parser.add_argument("--fedex-grant-id", default="owner-example-fedex-quote")
     parser.add_argument(
         "--invoice-application-archive", type=Path,
         default=REPOSITORY_ROOT / "acceptance/fixtures/documents.proforma_invoice/documents.proforma_invoice.zip",

@@ -27,7 +27,7 @@ SAFE_ID = re.compile(r"[a-z0-9][a-z0-9._:-]{0,127}")
 MAX_CALL_BYTES = 256 * 1024
 MAX_RESULT_BYTES = 4 * 1024 * 1024
 GRANT_TTL_SECONDS = 120
-BROKER_OPERATION_POLICY = {"fedex.rates/v1": frozenset({"quote"})}
+BROKER_OPERATION_POLICY = {"fedex.rates/v1": frozenset({"quote"}), "fedex.rates/v2": frozenset({"quote"})}
 
 
 class SecretResolver(Protocol):
@@ -173,6 +173,14 @@ class ConnectionControl:
                     used_at TEXT, created_at TEXT NOT NULL, capability_id TEXT,
                     version_digest TEXT, contract TEXT, operations_json TEXT
                 );
+                CREATE TABLE IF NOT EXISTS application_connection_approvals (
+                    workspace_id TEXT NOT NULL, capability_id TEXT NOT NULL,
+                    version_digest TEXT NOT NULL, approval_json TEXT NOT NULL,
+                    PRIMARY KEY(workspace_id, capability_id, version_digest)
+                );
+                CREATE TABLE IF NOT EXISTS derived_connection_grants (
+                    grant_id TEXT PRIMARY KEY, authority_json TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS connection_receipts (
                     id TEXT PRIMARY KEY, invocation_id TEXT NOT NULL, receipt_json TEXT NOT NULL,
                     created_at TEXT NOT NULL
@@ -180,7 +188,7 @@ class ConnectionControl:
                 """
             )
             columns = {row["name"] for row in db.execute("PRAGMA table_info(invocation_connection_grants)")}
-            for name in ("capability_id", "version_digest", "contract", "operations_json"):
+            for name in ("capability_id", "version_digest", "contract", "operations_json", "scope_id", "connection_id"):
                 if name not in columns:
                     db.execute(f"ALTER TABLE invocation_connection_grants ADD COLUMN {name} TEXT")
 
@@ -250,6 +258,193 @@ class ConnectionControl:
                 (grant_id, connection_id, scope_id, contract, canonical_json(operations).decode(), capability_id, version_digest, now, now),
             )
 
+    def configure_application(self, workspace_id: str, capability_id: str,
+                              version_digest: str, *, source_scope_id: str,
+                              connections: dict[str, str]) -> None:
+        """Trusted configuration only: approve exact existing grants, never labels.
+
+        The source must belong to a current owner of this workspace. This API
+        conveys no authority to application code or model-provided fields.
+        """
+        with self.store.transaction() as db:
+            self._owner_scope(db, workspace_id, source_scope_id)
+            if (not connections or not all(isinstance(k, str) and isinstance(v, str)
+                                          for k, v in connections.items())):
+                raise RuntimeFailure("CONNECTION_GRANT_INVALID")
+            sources = {}
+            for name, grant_id in connections.items():
+                if db.execute("SELECT 1 FROM derived_connection_grants WHERE grant_id=?", (grant_id,)).fetchone():
+                    raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+                grant = self.resolve_grant(grant_id, scope_id=source_scope_id,
+                                          capability_id=capability_id, version_digest=version_digest)
+                sources[name] = {"grant_id": grant_id, "fingerprint": self._source_fingerprint(grant)}
+            approval = dict(source_scope_id=source_scope_id, sources=sources)
+            db.execute("INSERT INTO application_connection_approvals VALUES (?,?,?,?) "
+                       "ON CONFLICT(workspace_id,capability_id,version_digest) DO UPDATE SET approval_json=excluded.approval_json",
+                       (workspace_id, capability_id, version_digest, canonical_json(approval).decode()))
+
+    def application_status(self, workspace_id: str, descriptor, version_digest: str) -> dict[str, Any]:
+        """Non-secret setup projection; no grant IDs, profiles or custody paths."""
+        requirements = [{"name": item.name, "contract": item.contract,
+                         "operations": list(item.operations)}
+                        for item in descriptor.connection_requirements]
+        status = "configured" if not descriptor.connections else "setup_required"
+        with self.store.connect() as db:
+            row = db.execute("SELECT approval_json FROM application_connection_approvals WHERE workspace_id=? AND capability_id=? AND version_digest=?",
+                             (workspace_id, descriptor.id, version_digest)).fetchone()
+        if row is not None:
+            approval = json.loads(row[0])
+            try:
+                with self.store.connect() as db:
+                    self._owner_scope(db, workspace_id, approval["source_scope_id"])
+                if set(approval["sources"]) != set(descriptor.connections):
+                    raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+                for item in descriptor.connection_requirements:
+                    source = approval["sources"][item.name]
+                    grant = self.resolve_grant(source["grant_id"], scope_id=approval["source_scope_id"],
+                        capability_id=descriptor.id, version_digest=version_digest, contract=item.contract)
+                    if (self._source_fingerprint(grant) != source["fingerprint"]
+                            or not set(item.operations) <= set(grant["operations"])):
+                        raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+                status = "configured"
+            except RuntimeFailure:
+                status = "setup_required"
+        return {"status": status, "requirements": requirements}
+
+    @staticmethod
+    def _owner_scope(db, workspace_id, source_scope_id):
+        if db.execute("""SELECT 1 FROM access_memberships m JOIN access_teams t ON t.id=m.team_id
+                         WHERE m.team_id=? AND m.execution_scope_id=? AND m.kind='owner'
+                         AND m.status='active' AND t.status='active'""",
+                      (workspace_id, source_scope_id)).fetchone() is None:
+            raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+
+    @staticmethod
+    def _source_fingerprint(grant):
+        return sha256(canonical_json({key: grant[key] for key in (
+            "id", "connection_id", "scope_id", "contract", "operations_json",
+            "capability_id", "version_digest", "updated_at")}))
+
+    def application_bindings(self, descriptor, version_digest: str, *,
+                             workspace_id: str, scope_id: str, membership_id: str,
+                             preview_id: str | None = None) -> dict[str, str]:
+        """Derive exact per-scope grants from persisted trusted configuration.
+
+        All custody stays in this control store, including for isolated previews.
+        Authority is checked again at invocation issue and broker consumption.
+        """
+        if not descriptor.connections:
+            return {}
+        if (descriptor.side_effect not in {"read_only", "artifact_generation"} or descriptor.state_required
+                or set(descriptor.connections) != {r.name for r in descriptor.connection_requirements}):
+            raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+        with self.store.transaction() as db:
+            row = db.execute("SELECT approval_json FROM application_connection_approvals "
+                             "WHERE workspace_id=? AND capability_id=? AND version_digest=?",
+                             (workspace_id, descriptor.id, version_digest)).fetchone()
+            if row is None:
+                raise RuntimeFailure("APPLICATION_CONNECTION_SETUP_REQUIRED")
+            approval = json.loads(row[0])
+            if set(approval["sources"]) != set(descriptor.connections):
+                raise RuntimeFailure("APPLICATION_CONNECTION_SETUP_REQUIRED")
+            self._owner_scope(db, workspace_id, approval["source_scope_id"])
+            member = db.execute("SELECT * FROM access_memberships WHERE id=? AND team_id=? AND status='active'",
+                                (membership_id, workspace_id)).fetchone()
+            if member is None or (preview_id is None and member["execution_scope_id"] != scope_id):
+                raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+            if preview_id is not None and scope_id != 'preview_' + preview_id.removeprefix('prv_'):
+                raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+            self.store.register_scope(scope_id)
+            bindings = {}
+            for requirement in descriptor.connection_requirements:
+                source = approval["sources"][requirement.name]
+                grant = self.resolve_grant(source["grant_id"], scope_id=approval["source_scope_id"],
+                    capability_id=descriptor.id, version_digest=version_digest, contract=requirement.contract)
+                if (self._source_fingerprint(grant) != source["fingerprint"]
+                        or not set(requirement.operations) <= set(grant["operations"])):
+                    raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+                authority = dict(workspace_id=workspace_id, capability_id=descriptor.id,
+                                 version_digest=version_digest, scope_id=scope_id,
+                                 membership_id=membership_id, preview_id=preview_id,
+                                 approval=approval, connection_name=requirement.name)
+                grant_id = 'derived-' + sha256(canonical_json(authority))
+                self.grant(grant_id, grant["connection_id"], scope_id, requirement.contract,
+                           list(requirement.operations), capability_id=descriptor.id, version_digest=version_digest)
+                db.execute("INSERT OR REPLACE INTO derived_connection_grants VALUES (?,?)",
+                           (grant_id, canonical_json(authority).decode()))
+                bindings[requirement.name] = grant_id
+            return bindings
+
+    def check_application_binding_identity(self, bindings, descriptor, version_digest, *,
+                                           workspace_id, scope_id, membership_id):
+        """Check canonical projection identity without requiring provider availability."""
+        if set(bindings) != set(descriptor.connections):
+            raise RuntimeFailure("TEAM_BINDING_VERSION_CONFLICT")
+        with self.store.connect() as db:
+            for name, grant_id in bindings.items():
+                row = db.execute("SELECT authority_json FROM derived_connection_grants WHERE grant_id=?", (grant_id,)).fetchone()
+                if row is None:
+                    raise RuntimeFailure("TEAM_BINDING_VERSION_CONFLICT")
+                authority = json.loads(row[0])
+                expected = dict(workspace_id=workspace_id, scope_id=scope_id, membership_id=membership_id,
+                                capability_id=descriptor.id, version_digest=version_digest,
+                                connection_name=name, preview_id=None)
+                if any(authority.get(key) != value for key, value in expected.items()):
+                    raise RuntimeFailure("TEAM_BINDING_VERSION_CONFLICT")
+
+    def revoke_bindings(self, bindings: dict[str, str]) -> None:
+        with self.store.connect() as db:
+            for grant_id in bindings.values():
+                db.execute("UPDATE invocation_connection_grants SET used_at=? WHERE grant_id=? AND used_at IS NULL",
+                           (utc_now(), grant_id))
+                db.execute("UPDATE connection_grants SET status='revoked',updated_at=? WHERE id=? "
+                           "AND id IN (SELECT grant_id FROM derived_connection_grants)", (utc_now(), grant_id))
+
+    def _validate_derived(self, grant) -> None:
+        with self.store.connect() as db:
+            row = db.execute("SELECT authority_json FROM derived_connection_grants WHERE grant_id=?", (grant["id"],)).fetchone()
+            if row is None:
+                return
+            authority = json.loads(row[0])
+            if any(grant[key] != authority[key] for key in ("scope_id", "capability_id", "version_digest")):
+                raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+            approval = authority["approval"]
+            current = db.execute("SELECT approval_json FROM application_connection_approvals WHERE workspace_id=? AND capability_id=? AND version_digest=?",
+                (authority["workspace_id"], authority["capability_id"], authority["version_digest"])).fetchone()
+            if current is None or json.loads(current[0]) != approval:
+                raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+            self._owner_scope(db, authority["workspace_id"], approval["source_scope_id"])
+            member = db.execute("SELECT * FROM access_memberships WHERE id=? AND team_id=? AND status='active'",
+                (authority["membership_id"], authority["workspace_id"])).fetchone()
+            if member is None:
+                raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+            if authority["preview_id"]:
+                preview = db.execute("SELECT status,expires_at FROM release_previews WHERE id=?", (authority["preview_id"],)).fetchone()
+                if preview is None or preview["status"] != 'ACTIVE' or preview["expires_at"] <= time.time():
+                    raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+            else:
+                if member["execution_scope_id"] != grant["scope_id"]:
+                    raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+                binding = self.store.binding_or_none(grant["scope_id"], authority["capability_id"])
+                if (binding is None or binding.version_digest != authority["version_digest"]
+                        or binding.connections.get(authority["connection_name"]) != grant["id"]):
+                    raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+                # Personal workspaces have no team share; team applications must
+                # retain the exact active canonical share on every broker call.
+                personal = db.execute("SELECT 1 FROM access_personal_workspaces WHERE team_id=?", (authority["workspace_id"],)).fetchone()
+                if personal is None and db.execute("SELECT 1 FROM team_software WHERE team_id=? AND capability_id=? AND version_digest=? AND status='active'",
+                    (authority["workspace_id"], authority["capability_id"], authority["version_digest"])).fetchone() is None:
+                    raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+            source = approval["sources"][authority["connection_name"]]
+            if db.execute("SELECT 1 FROM derived_connection_grants WHERE grant_id=?", (source["grant_id"],)).fetchone():
+                raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+            source_grant = self.resolve_grant(source["grant_id"], scope_id=approval["source_scope_id"],
+                capability_id=authority["capability_id"], version_digest=authority["version_digest"], contract=grant["contract"])
+            if (grant["connection_id"] != source_grant["connection_id"]
+                    or self._source_fingerprint(source_grant) != source["fingerprint"]
+                    or not set(json.loads(grant["operations_json"])) <= set(source_grant["operations"])):
+                raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+
     def status(self, scope_id: str, grant_id: str, resolver: SecretResolver | None = None) -> str:
         try:
             record = self.resolve_grant(grant_id, scope_id=scope_id)
@@ -298,6 +493,7 @@ class ConnectionControl:
             ).fetchone()
         if row is None:
             raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+        self._validate_derived(row)
         operations = json.loads(row["operations_json"])
         if (
             (capability_id is not None and row["capability_id"] not in {None, capability_id})
@@ -336,13 +532,13 @@ class ConnectionControl:
                 """INSERT INTO invocation_connection_grants
                    (token_digest, invocation_id, grant_id, connection_name, expected_uid,
                     expires_at, used_at, created_at, capability_id, version_digest,
-                    contract, operations_json)
-                   VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)""",
+                    contract, operations_json, scope_id, connection_id)
+                   VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     hashlib.sha256(token.encode()).hexdigest(), invocation_id, grant_id,
                     connection_name, expected_uid, time.time() + GRANT_TTL_SECONDS, utc_now(),
                     capability_id, version_digest, contract,
-                    canonical_json(list(operations)).decode(),
+                    canonical_json(list(operations)).decode(), scope_id, record["connection_id"],
                 ),
             )
         return token
@@ -391,6 +587,12 @@ class ConnectionControl:
             ).fetchone()
         if grant is None:
             raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
+        self._validate_derived(grant)
+        if (row["connection_id"] is None or grant["connection_id"] != row["connection_id"]
+                or row["scope_id"] is None or grant["scope_id"] != row["scope_id"]
+                or grant["capability_id"] not in {None, row["capability_id"]}
+                or grant["version_digest"] not in {None, row["version_digest"]}):
+            raise RuntimeFailure("CONNECTION_OPERATION_DENIED")
         result = dict(grant)
         grant_operations = json.loads(grant["operations_json"])
         if contract != grant["contract"] or operation not in grant_operations:
@@ -431,11 +633,13 @@ class ConnectionBroker:
         resolver: SecretResolver,
         profiles: dict[str, dict[str, Any]],
         adapters: dict[str, ConnectionAdapter],
+        *, managed_executor=None,
     ):
         self.control = control
         self.resolver = resolver
         self.profiles = profiles
         self.adapters = adapters
+        self.managed_executor = managed_executor
 
     def handle(self, request: object, *, peer_uid: int | None = None) -> dict[str, Any]:
         if not isinstance(request, dict) or set(request) != {
@@ -464,15 +668,21 @@ class ConnectionBroker:
         response_digest: str | None = None
         provider_reference: str | None = None
         try:
-            adapter = self.adapters.get(grant["adapter_version"])
-            profile = self.profiles.get(grant["profile_reference"])
-            if adapter is None or profile is None:
-                raise RuntimeFailure("CONNECTION_UNAVAILABLE")
-            secret = self.resolver.resolve(grant["secret_reference"])
-            result = adapter.call(
-                contract=request["contract"], operation=request["operation"],
-                secret=secret, profile=profile, payload=request["payload"],
-            )
+            if grant['adapter_version'] in {'fedex-rates-adapter/v2','fedex-rates-adapter/v3'} and self.managed_executor is not None:
+                # Credentials remain inside the separate account service. The
+                # broker transfers only the consumed grant identity and payload.
+                secret = {}
+                result = self.managed_executor(grant, request['invocation_id'], request['payload'])
+            else:
+                adapter = self.adapters.get(grant["adapter_version"])
+                profile = self.profiles.get(grant["profile_reference"])
+                if adapter is None or profile is None:
+                    raise RuntimeFailure("CONNECTION_UNAVAILABLE")
+                secret = self.resolver.resolve(grant["secret_reference"])
+                result = adapter.call(
+                    contract=request["contract"], operation=request["operation"],
+                    secret=secret, profile=profile, payload=request["payload"],
+                )
             if not isinstance(result, dict) or len(canonical_json(result)) > MAX_RESULT_BYTES:
                 raise RuntimeFailure("CONNECTION_RESPONSE_INVALID")
             self._reject_secret_reflection(result, secret)
@@ -501,7 +711,7 @@ class ConnectionBroker:
             "capability_id": grant["capability_id"],
             "version_digest": grant["version_digest"],
             "request_digest": request_digest,
-            "provider_endpoint_class": "fedex-rates" if grant["contract"] == "fedex.rates/v1" else "unknown",
+            "provider_endpoint_class": "fedex-rates" if grant["contract"] in {"fedex.rates/v1", "fedex.rates/v2"} else "unknown",
             "provider_status": status,
             "provider_reference": provider_reference,
             "response_digest": response_digest,
@@ -584,7 +794,10 @@ class ConnectionBroker:
                         connection.settimeout(20)
                         peer_uid = self._peer_uid(connection)
                         response = self._read_and_handle(connection, peer_uid)
-                        connection.sendall(canonical_json(response) + b"\n")
+                        try:
+                            connection.sendall(canonical_json(response) + b"\n")
+                        except (BrokenPipeError, ConnectionResetError):
+                            pass
             finally:
                 socket_path.unlink(missing_ok=True)
 
@@ -600,7 +813,10 @@ class ConnectionBroker:
                     raise RuntimeFailure("CONNECTION_REQUEST_TOO_LARGE")
             if not payload.endswith(b"\n") or payload.count(b"\n") != 1:
                 raise RuntimeFailure("CONNECTION_CALL_INVALID")
-            return self.handle(json.loads(payload[:-1]), peer_uid=peer_uid)
+            value = json.loads(payload[:-1])
+            if value == {"schema": "capy.connection-health/v0"}:
+                return {"schema": "capy.connection-health/v0", "status": "ready"}
+            return self.handle(value, peer_uid=peer_uid)
         except RuntimeFailure as exc:
             return {"schema": "capy.connection-result/v0", "status": "failed", "failure_code": exc.code}
         except (ValueError, json.JSONDecodeError):

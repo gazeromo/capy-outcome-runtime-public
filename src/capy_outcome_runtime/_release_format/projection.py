@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 
 from . import codec
-from .constants import ACCEPT_SCHEMA, NON_GOALS, REJECT_SCHEMA
+from .constants import ACCEPT_SCHEMA, NON_GOALS, REJECT_SCHEMA, non_goals_for_release
 
 
 def build_identity(candidate, profile, release: dict) -> dict:
@@ -104,5 +104,5 @@ def build_document(
         "cases": list(cases),
         "secret_scan": {"status": secret_status, "findings": list(secret_findings)},
         "cleanup": {"status": "CONFIRMED"},
-        "non_claims": list(NON_GOALS),
+        "non_claims": list(non_goals_for_release(identity["acceptor"])),
     }

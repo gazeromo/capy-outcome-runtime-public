@@ -1,52 +1,34 @@
-# Capy Outcome Runtime — public source snapshot
+# Capy Outcome Runtime
 
-This repository publishes an audited runtime source snapshot and self-contained,
-provider-free tests with fresh Git history. It is a supporting publication and CI
-surface. It does not transfer production authority or publish private project
-history, operational records, customer data, conversations, or credentials.
+A source snapshot of Capy's execution runtime and consumer adapter. The runtime keeps invocation authority, results and artifact membership on the server. The consumer exposes the full authorized native tool catalog, queries bounded discovery context and verifies complete local artifact delivery.
 
-`SNAPSHOT.json` pins the source commit and SHA-256 of every exported file. All58
-runtime Python/data files are unchanged from source snapshot
-`c1ba85a2197667a75d3706d8a282b09181217b50`. The only test adaptation extracts an
-identical synthetic actor helper into a local module, removing a dependency on
-unrelated campaign tests. No runtime code was changed for publication.
+## Development
 
-The runtime includes independently approved accepted-release import, separate
-workspace binding, typed portable interaction projection and the existing
-application/runtime interfaces. Import does not execute the candidate or grant
-workspace use. Bundled A/B/C handoffs are synthetic total/mean/report fixtures;
-only the original B/C handoffs are accepted positives. Tests do not create a new
-business application acceptance or call a live model/business provider.
-
-## Verification
-
-Use Python3.13 or newer for runtime/interface tests:
+Requires Python 3.11 or newer. Install into a virtual environment:
 
 ```sh
-python -m pip install pytest
+python -m pip install -e '.[account-service]' pytest
 python tools/verify_snapshot.py
+python tools/check_publication.py
 PYTHONPATH=src:tests python -m pytest -q tests
 ```
 
-The CI matrix separately tests pure format/projection on Ubuntu, macOS and Windows
-with Python3.11. Native application execution on macOS or Windows is not claimed.
-The Ubuntu focused integration job uses Python3.13. It does not substitute for
-separately recorded real Linux systemd product qualification, and is not the full
-private legacy regression suite.
+The full self-contained test selection runs on Linux and macOS. Windows CI runs pure discovery, artifact decoding/projection and format tests against both source and an installed wheel. Native Core execution, credential handling and local artifact materialization currently require POSIX facilities; Windows results do not qualify those paths.
 
-The workflow uses standard GitHub-hosted runners, a read-only repository token,
-no repository secrets and no private-repository checkout. Publishing this snapshot
-does not deploy a service or merge the source into another repository.
+## Discovery and delivery
 
-## Publication audit
+`/v0/discover` retains the complete authorized catalog for native tool declarations. `/v0/context` accepts a query or continuation cursor and returns bounded deterministic metadata guidance, with current authority checks on each page. Full native declarations retain their initial token cost.
 
-See `PUBLICATION-AUDIT.json`. Before the first push, the selected source/tests were
-reviewed for personal, transaction and operational data; nested fixture archives
-were inspected as inert bytes; and Gitleaks scanned the export with archive and
-recursive decoding enabled. No secrets were detected. No scan proves that all
-possible sensitive information is absent. Private historical campaign material
-and its Git objects were never copied into this repository.
+When an output directory is configured, the consumer retrieves every artifact listed by the exact execution, verifies its digest and size, and returns an ordered delivery manifest. `capy_result(id)` retries local delivery without rerunning the application. Without an output directory the result explicitly reports remote-only delivery.
 
-This publication introduces no new software license grant. Existing provenance
-for the vendored format helpers remains in
-`src/capy_outcome_runtime/_release_format/PROVENANCE.json`.
+Customer-specific example identifiers have been replaced with generic examples. Configure your own grants, connection profiles and secret references; these example defaults do not select a production account.
+
+## Snapshot scope
+
+This repository has no production authority. It contains source, self-contained synthetic tests, and previously public synthetic format fixtures. Private Git ancestry, deployment configuration, campaign evidence, model transcripts, account data and live credentials are excluded. `SNAPSHOT.json` records every published file hash and the limited source transformations. Do not copy private runtime state into this repository.
+
+Public CI is qualification of this snapshot, not a deployment, acceptance of a private wheel, or an owner-use claim.
+
+## License
+
+Apache License 2.0. See LICENSE and NOTICE.

@@ -1,0 +1,5 @@
+Capy Outcome Runtime
+Copyright 2026 Capy contributors
+
+This distribution includes Capy application release-format helpers.
+Their source provenance is recorded in src/capy_outcome_runtime/_release_format/PROVENANCE.json.

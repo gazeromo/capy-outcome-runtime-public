@@ -362,10 +362,22 @@ class ContractDerivedInterfaceService:
                 or activity["application_id"] != application_id
                 or activity["application_version"] != contract["application_version"]
                 or activity["contract_digest"] != contract["digest"]
-                or activity["status"] != "succeeded"
+                or activity["status"] not in {"succeeded", "failed", "running"}
             ):
                 raise RuntimeFailure("APPLICATION_INTERFACE_ACTIVITY_DENIED")
             return self._activity_projection(activity)
+
+    def latest_activity(self, actor, application_id):
+        """Latest attempt, independent of successful adoption evidence."""
+        with self.authority_guard(actor) as current:
+            contract = self.contract_resolver(current, application_id)
+            with self.runtime_store.connect() as db:
+                row = db.execute("""SELECT id FROM interface_activities WHERE principal_id=? AND membership_id=?
+                    AND team_id=? AND scope_id=? AND application_id=? AND application_version=?
+                    AND contract_digest=? ORDER BY created_at DESC,rowid DESC LIMIT 1""",
+                    (current.principal_id, current.membership_id, current.team_id,
+                     current.execution_scope_id, application_id, contract['application_version'], contract['digest'])).fetchone()
+            return self.activity(current, application_id, row['id']) if row else None
 
     def watcher_listings(self, actor: ActorContext, reference: str) -> dict[str, Any]:
         """Resolve one opaque, workspace-bound watch reference and read its app projection."""
@@ -410,10 +422,11 @@ class ContractDerivedInterfaceService:
     def _activity_projection(activity: dict[str, Any]) -> dict[str, Any]:
         return {
             "activity_id": activity["id"],
+            "status": activity["status"],
             "application_id": activity["application_id"],
             "application_version": activity["application_version"],
             "operation_id": activity["operation_id"],
-            "summary": activity.get("summary") or "The application operation completed.",
+            "summary": activity.get("summary") or ("The application operation completed." if activity["status"] == "succeeded" else "No confirmed result."),
             "operation_receipt": activity.get("receipt"),
             "invocation_id": activity.get("invocation_id"),
             "result": activity.get("result") or {},

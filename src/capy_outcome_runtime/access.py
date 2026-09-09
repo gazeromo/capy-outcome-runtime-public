@@ -251,7 +251,7 @@ class AccessStore:
         return {"id": claim_id, "token": token, "expires_at": expires_at}
 
     def create_bootstrap_claim(
-        self, team_name: str = "Cosmain", legacy_scope_id: str = "owner", *, ttl: timedelta | None = None
+        self, team_name: str = "Example", legacy_scope_id: str = "owner", *, ttl: timedelta | None = None
     ) -> dict[str, str]:
         team_name = _display_name(team_name)
         with self.runtime.connect() as db:

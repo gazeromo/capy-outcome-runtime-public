@@ -37,7 +37,7 @@ def main() -> int:
     bootstrap = commands.add_parser("bootstrap")
     bootstrap.add_argument("--runtime-root", required=True, type=Path)
     bootstrap.add_argument("--origin", required=True)
-    bootstrap.add_argument("--team-name", default="Cosmain")
+    bootstrap.add_argument("--team-name", default="Example")
     bootstrap.add_argument("--legacy-scope", default="owner")
     bootstrap.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()

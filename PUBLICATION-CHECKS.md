@@ -1,14 +1,15 @@
-# Initial publication checks
+# Publication checks
 
-The first public run33979250224 executed standard hosted runners successfully;
-there was no billing admission block. Ubuntu/macOS pure controls and Ubuntu
-focused integration passed. Windows stopped at the byte-provenance check for
-pyproject.toml before tests: default checkout newline conversion changed bytes.
-The repository now disables text conversion in .gitattributes so every platform
-checks out the exact audited source/fixture bytes. No runtime or frozen test
-expectation changed. The original failed run remains visible in Actions.
+The snapshot imports no private Git history. The existing public history is preserved.
+Private campaign evidence and operational configuration are excluded. Product example
+identifiers are generic. The preserved private runtime and its accepted wheels are
+unchanged; this source snapshot is separately versioned 0.1.2.
 
-Source provenance is verified by tools/verify_snapshot.py. The original public
-root commit15f26d63c12a8a6074e87315d160d29c11d65fbb has no parents; it contains no
-inherited private Git history. Later commits contain only public publication
-configuration/evidence. Private history and runtime authority remain elsewhere.
+Before publication, run the snapshot byte verifier, the recursive private-data guard,
+a redacted Gitleaks scan of the complete candidate, and source/installed tests.
+The guard checks nested ZIP fixtures as well as text. Secret-pattern findings from
+private history remain in private audit storage, not this repository.
+
+Public historical commits predate this snapshot and may retain previously published
+example labels. This snapshot does not claim to erase previously public history.
+The existing-public-history Gitleaks scan returned no secret-pattern matches; that is not proof that credentials never existed.

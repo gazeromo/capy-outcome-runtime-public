@@ -1,26 +1,30 @@
 {
-  "date": "2026-09-06",
-  "decision": "Selected snapshot eligible for public publication",
-  "source_commit": "c1ba85a2197667a75d3706d8a282b09181217b50",
-  "history": "Fresh repository; no upstream Git objects or references copied",
-  "runtime_source_files": 58,
-  "runtime_source_unchanged": true,
-  "focused_tests_passed_locally": 49,
-  "local_python": "3.14",
-  "secret_scanner": {
-    "name": "Gitleaks",
-    "version": "8.30.1",
-    "mode": "dir; max-archive-depth8; max-decode-depth5; built-in allow comments disabled; default rules; redacted output",
-    "findings": 0
-  },
-  "archive_inspection": {
-    "leaf_members": 162,
-    "unpacked_bytes": 305084,
-    "non_text_members": 0,
-    "personal_address_or_private_transaction_indicators": 0
-  },
-  "manual_scope": "Selected source, synthetic tests/fixtures, manifest and neutral documentation. Only loopback IPv4 observed. No customer transaction records, production IPs, personal filesystem paths, screenshots, databases, provider transcripts or operational receipts included.",
-  "excluded": "All upstream history and campaign content except6 exact synthetic handoff files. No private repo credentials required.",
-  "test_adaptation": "Isolated identical actor helper so the focused interface test does not import unrelated private-campaign-dependent tests. Runtime and pure portability controls unchanged.",
-  "limits": "Credential scanning plus targeted content review is evidence, not a guarantee of absence of every conceivable sensitive value. This is not a security certification or license change."
+  "schema": "capy.publication-audit/v1",
+  "scope": "Current allowlisted public snapshot; no private ancestry or operational evidence imported. Existing public history preserved.",
+  "private_source_commit": "82e5b3c0af18424a0e32ad77f8450f3856bc2877",
+  "source_files": 92,
+  "source_files_byte_identical": 87,
+  "changed_source_files": [
+    "src/capy_outcome_runtime/build.py",
+    "src/capy_outcome_runtime/web.py",
+    "src/capy_outcome_runtime/access.py",
+    "src/capy_outcome_runtime/connection_cli.py",
+    "src/capy_outcome_runtime/access_cli.py"
+  ],
+  "changes": "Customer-specific examples replaced with generic identifiers only; package version0.1.2 and Apache-2.0 licensing.",
+  "candidate_secret_pattern_matches": 0,
+  "existing_public_history_secret_pattern_matches": 0,
+  "recursive_private_data_guard": "PASS",
+  "local_source_tests": 66,
+  "local_installed_tests": 66,
+  "private_history_rewritten": false,
+  "private_repository_visibility_changed": false,
+  "deployment": false,
+  "limits": [
+    "Automated scans cannot prove absence of every possible secret.",
+    "Previously public history can retain old example identifiers; no private history was added.",
+    "Published self-contained tests do not represent every private integration qualification.",
+    "Windows CI scope excludes POSIX native Core/credentials/materialization."
+  ],
+  "scanner": "Gitleaks8.30.1 with redaction, built-in rules and archive depth5"
 }

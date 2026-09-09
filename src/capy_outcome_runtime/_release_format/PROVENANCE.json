@@ -1,15 +1,15 @@
 {
   "repository": "gazeromo/capy-application-acceptor",
-  "commit": "0991cd36ea5b7c12d1d7e5067bb9a0430e0c0bdc",
+  "commit": "cd138579db75752dba7c2217f5e5001dabb801b7",
   "files": {
-    "candidate.py": "2d792fa09cea122546dfd482c403152bb1ad880fad2848569cb60df27c428774",
+    "candidate.py": "1db3bf66f47a0b13773a45a36556fe8f56eb4355bd0244f669df86513804f61e",
     "codec.py": "5aae8ddacef2de96344598293bf94c52c131c776d1942940fedab770be0e7c48",
     "validation.py": "700f9bcc2bb3a29557a84a54155cd6f37629100b2f76f1d200a2ae2eed6683f8",
-    "constants.py": "e168926bbc327382087f10a975c087483007e8ec4d9362e94119eddade9ab7ab",
+    "constants.py": "984634df6ca4b86a2304f275789eb75678ff6d34e116e9e77ede3404989ac744",
     "errors.py": "6c8e932672cf4756c619700fec6297caef0a55536fa57212ff54659024b5f026",
-    "interaction.py": "2fd994bbfcab321d4da58ebc07d227d5a71ae65d26d6f5e9eef11b73217c0a7e",
+    "interaction.py": "3417586fa3d2e7f636b4badb9b4691ef5b64cc3b010dd2b00060032956745609",
     "models.py": "35f095260f4e463fa3a27c95668542b327b4ec8183279a2e4ecd8ffae6922c6b",
-    "projection.py": "a5c51d159cffcbf8294a1b5c333d0e5ed084957f753d5e18330be9a15c3da72f"
+    "projection.py": "4f9287653b7e89447a9728935f15b9be1b5186db41a00d9917170e0e1019af09"
   },
   "runtime_modifications": {
     "codec.py": {

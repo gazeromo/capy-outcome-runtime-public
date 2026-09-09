@@ -1600,7 +1600,7 @@ conversation. The trusted harness owns provider-free/live acceptance and publica
         if version != build["candidate_version_digest"]:
             raise RuntimeFailure("PUBLISHED_VERSION_MISMATCH")
         connections = (
-            {"fedex_rates": f"{build['scope_id']}-cosmain-fedex-quote"}
+            {"fedex_rates": f"{build['scope_id']}-example-fedex-quote"}
             if capability_id == FEDEX_CAPABILITY_ID else {}
         )
         new_binding = {

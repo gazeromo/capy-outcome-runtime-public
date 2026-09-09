@@ -45,7 +45,8 @@ class ReconciliationResult:
 class TeamSoftwareStore:
     """Own only software shares and their derived per-membership bindings."""
 
-    def __init__(self, runtime: RuntimeStore, access: AccessStore):
+    def __init__(self, runtime: RuntimeStore, access: AccessStore, *, connection_control=None):
+        self.connection_control = connection_control
         self.runtime = runtime
         self.access = access
         self._initialize()
@@ -209,18 +210,52 @@ class TeamSoftwareStore:
                     and membership["status"] == "active"
                     and shared["status"] == "active"
                 )
+                connections = {}
                 if desired:
+                    descriptor = self.runtime.descriptor(capability_id, version)
+                    if descriptor.connections and current is not None:
+                        # Existing grants recheck their source and workspace at
+                        # broker use. Do not let unavailable provider setup block
+                        # reconciliation of a different revoked membership.
+                        if self.connection_control is None:
+                            raise RuntimeFailure("APPLICATION_CONNECTION_SETUP_REQUIRED")
+                        self.connection_control.check_application_binding_identity(
+                            current.connections, descriptor, version, workspace_id=team_id,
+                            scope_id=scope_id, membership_id=membership["id"])
+                        connections = current.connections
+                        if self.connection_control.application_status(team_id, descriptor, version)["status"] == "configured":
+                            connections = self.connection_control.application_bindings(
+                                descriptor, version, workspace_id=team_id, scope_id=scope_id,
+                                membership_id=membership["id"])
+                    elif descriptor.connections:
+                        if self.connection_control is None:
+                            raise RuntimeFailure("APPLICATION_CONNECTION_SETUP_REQUIRED")
+                        connections = self.connection_control.application_bindings(
+                            descriptor, version, workspace_id=team_id, scope_id=scope_id,
+                            membership_id=membership["id"])
                     if current is not None and (
-                        current.version_digest != version or current.connections != {}
+                        current.version_digest != version
                     ):
                         raise RuntimeFailure("TEAM_BINDING_VERSION_CONFLICT")
+                    if current is not None and current.connections != connections:
+                        with self.runtime.transaction():
+                            self.connection_control.revoke_bindings(current.connections)
+                            self.runtime.bind(scope_id, capability_id, version, connections)
                     if current is None:
-                        self.runtime.bind(scope_id, capability_id, version, {})
+                        self.runtime.bind(scope_id, capability_id, version, connections)
                         added += 1
                     self._record_binding_receipt(membership, shared, "bind")
                 elif current is not None:
-                    if current.version_digest != version or current.connections != {}:
+                    descriptor = self.runtime.descriptor(capability_id, version)
+                    if current.version_digest != version or (not descriptor.connections and current.connections):
                         raise RuntimeFailure("TEAM_BINDING_VERSION_CONFLICT")
+                    if current.connections:
+                        if self.connection_control is None:
+                            raise RuntimeFailure("APPLICATION_CONNECTION_SETUP_REQUIRED")
+                        self.connection_control.check_application_binding_identity(
+                            current.connections, descriptor, version, workspace_id=team_id,
+                            scope_id=scope_id, membership_id=membership["id"])
+                        self.connection_control.revoke_bindings(current.connections)
                     self.runtime.unbind(scope_id, capability_id)
                     self._record_binding_receipt(membership, shared, "unbind")
                     removed += 1

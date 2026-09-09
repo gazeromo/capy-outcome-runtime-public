@@ -242,8 +242,8 @@ def parse_descriptor(raw: bytes) -> dict:
     for item in value["connections"]:
         if (not isinstance(item["contract"], str) or _CONTRACT_RE.fullmatch(item["contract"]) is None
                 or not isinstance(item["operations"], list) or not item["operations"]
-                or len(set(item["operations"])) != len(item["operations"])
                 or any(not isinstance(op, str) or _SLOT_RE.fullmatch(op) is None for op in item["operations"])
+                or len(set(item["operations"])) != len(item["operations"])
                 or type(item["required"]) is not bool):
             raise InteractionError(f"descriptor-connection:{item.get('name')}")
     check_json_schema(value["input_schema"], "input_schema")
@@ -453,8 +453,6 @@ def validate_interaction_document(doc: dict, descriptor: dict) -> dict:
         _fail("application-mismatch")
     if descriptor["state_required"]:
         _fail("state-unsupported")
-    if descriptor["connections"]:
-        _fail("connections-unsupported")
     if descriptor["side_effect"] not in {"read_only", "artifact_generation"}:
         _fail("side-effect-unsupported")
     _checked_text(document["title"], "title", 120)
